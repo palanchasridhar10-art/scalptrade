@@ -57,6 +57,7 @@ class AccountState(BaseModel):
     balance: float = 10000.0
     realized_pnl: float = 0.0
     total_commission_paid: float = 0.0
+    high_watermark: float = 10000.0
     daily_starting_equity: float = 10000.0
     weekly_starting_equity: float = 10000.0
     daily_realized_pnl: float = 0.0
@@ -66,9 +67,15 @@ class AccountState(BaseModel):
     closed_trades: List[ClosedTradeInfo] = Field(default_factory=list)
     
     @property
+    def unrealized_pnl(self) -> float:
+        return sum(p.unrealized_pnl for p in self.positions.values())
+
+    @property
     def equity(self) -> float:
-        unrealized = sum(p.unrealized_pnl for p in self.positions.values())
-        return self.balance + unrealized
+        eq = self.balance + self.unrealized_pnl
+        if eq > self.high_watermark:
+            object.__setattr__(self, 'high_watermark', eq)
+        return eq
 
     @property
     def daily_pnl(self) -> float:
@@ -84,7 +91,7 @@ class AccountState(BaseModel):
 
     @property
     def total_drawdown_pct(self) -> float:
-        return max(0.0, (self.initial_balance - self.equity) / self.initial_balance) if self.initial_balance > 0 else 0.0
+        return max(0.0, (self.high_watermark - self.equity) / self.high_watermark) if self.high_watermark > 0 else 0.0
 
     def add_position(self, pos: Position):
         self.positions[pos.symbol] = pos
@@ -94,11 +101,14 @@ class AccountState(BaseModel):
 
     def record_closed_trade(self, info: ClosedTradeInfo):
         self.balance += info.net_pnl
-        self.realized_pnl += info.gross_pnl
-        self.daily_realized_pnl += info.gross_pnl
+        self.realized_pnl += info.net_pnl
+        self.daily_realized_pnl += info.net_pnl
         self.total_commission_paid += info.commission
         self.closed_trades.append(info)
         
+        if self.balance > self.high_watermark:
+            self.high_watermark = self.balance
+
         if info.net_pnl > 0:
             self.consecutive_wins += 1
             self.consecutive_losses = 0

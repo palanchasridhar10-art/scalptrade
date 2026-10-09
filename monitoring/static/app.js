@@ -132,9 +132,22 @@ function updateDashboard(data) {
   const ddPct = p.drawdown_pct !== undefined ? p.drawdown_pct : 0.0;
   const maxDdLimit = p.max_daily_loss_limit_pct || 1.5;
 
-  // Update Equity & Available Balance
-  document.getElementById("acc-equity").textContent = `$${equity.toLocaleString('en-US', {minimumFractionDigits:2, maximumFractionDigits:2})}`;
+  // Update Equity & Available Balance with Flash Animations
+  const eqEl = document.getElementById("acc-equity");
+  const prevEq = parseFloat(eqEl.getAttribute("data-prev-eq") || equity);
+  eqEl.textContent = `$${equity.toLocaleString('en-US', {minimumFractionDigits:2, maximumFractionDigits:2})}`;
   document.getElementById("acc-balance").textContent = `Available: $${balance.toLocaleString('en-US', {minimumFractionDigits:2, maximumFractionDigits:2})} USDT`;
+
+  if (equity > prevEq + 0.01) {
+    eqEl.classList.remove("value-flash-down");
+    eqEl.classList.add("value-flash-up");
+    setTimeout(() => eqEl.classList.remove("value-flash-up"), 600);
+  } else if (equity < prevEq - 0.01) {
+    eqEl.classList.remove("value-flash-up");
+    eqEl.classList.add("value-flash-down");
+    setTimeout(() => eqEl.classList.remove("value-flash-down"), 600);
+  }
+  eqEl.setAttribute("data-prev-eq", equity);
 
   // Update Net Realized P&L
   const realEl = document.getElementById("realized-pnl");

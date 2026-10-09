@@ -252,6 +252,24 @@ header {
   overflow: hidden;
 }
 
+.value-flash-up {
+  animation: flashGreen 0.6s ease;
+}
+
+.value-flash-down {
+  animation: flashRed 0.6s ease;
+}
+
+@keyframes flashGreen {
+  0% { transform: scale(1.05); color: #34d399; text-shadow: 0 0 12px rgba(52, 211, 153, 0.8); }
+  100% { transform: scale(1); }
+}
+
+@keyframes flashRed {
+  0% { transform: scale(1.05); color: #f87171; text-shadow: 0 0 12px rgba(248, 113, 113, 0.8); }
+  100% { transform: scale(1); }
+}
+
 .risk-meter-fill {
   height: 100%;
   background: linear-gradient(90deg, var(--accent-green), var(--accent-yellow), var(--accent-red));
