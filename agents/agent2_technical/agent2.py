@@ -77,59 +77,68 @@ class Agent2TechnicalSMC:
         short_points = 0.0
         weights = self.config.weights
 
-        # A. SMC Structure (20 pts)
+        # A. SMC Structure & Confluence (25 pts)
         struct = smc_res.get("structure", "CONSOLIDATION")
+        has_sweep = smc_res.get("liquidity_sweep", False)
+        sweep_dir = smc_res.get("sweep_direction", "NONE")
+        has_fvg = smc_res.get("fvg", False)
+        fvg_dir = smc_res.get("fvg_direction", "NONE")
+        has_ob = smc_res.get("order_block", False)
+        prem_disc = smc_res.get("premium_discount", "EQUILIBRIUM")
+
         if smc_res.get("choch"):
-            reasons.append("SMC Change of Character (CHoCH) shift confirmed")
+            reasons.append("SMC Change of Character (CHoCH) structural transition")
             if ind_res.get("trend_score", 0) >= 0:
-                long_points += weights.smc_structure * 0.9
+                long_points += 15.0
             else:
-                short_points += weights.smc_structure * 0.9
+                short_points += 15.0
         elif smc_res.get("bos"):
-            reasons.append("SMC Break of Structure (BOS) continuation")
+            reasons.append("SMC Break of Structure (BOS) trend expansion")
             if current_price > smc_res.get("nearest_swing_high", 0.0):
-                long_points += weights.smc_structure * 0.8
+                long_points += 12.0
             else:
-                short_points += weights.smc_structure * 0.8
+                short_points += 12.0
 
-        if smc_res.get("fvg"):
-            fvg_dir = smc_res.get("fvg_direction", "")
-            if fvg_dir == "BULLISH_FVG":
-                long_points += weights.smc_structure * 0.5
-                reasons.append("Bullish Fair Value Gap (FVG) imbalance zone")
-            elif fvg_dir == "BEARISH_FVG":
-                short_points += weights.smc_structure * 0.5
-                reasons.append("Bearish Fair Value Gap (FVG) imbalance zone")
+        # High-Accuracy SMC Confluence: Liquidity Sweep + FVG Displacement / Order Block
+        if has_sweep and sweep_dir == "BUY_SIDE_SWEEP":
+            long_points += 15.0
+            reasons.append("Sell-side liquidity sweep below key swing low (Bullish Reversal)")
+            if has_fvg and fvg_dir == "BULLISH_FVG":
+                long_points += 8.0
+                reasons.append("High-confluence: Liquidity Sweep + Bullish FVG displacement")
+            if has_ob:
+                long_points += 5.0
+                reasons.append("High-confluence: Bullish Order Block mitigation")
+        elif has_sweep and sweep_dir == "SELL_SIDE_SWEEP":
+            short_points += 15.0
+            reasons.append("Buy-side liquidity sweep above key swing high (Bearish Reversal)")
+            if has_fvg and fvg_dir == "BEARISH_FVG":
+                short_points += 8.0
+                reasons.append("High-confluence: Liquidity Sweep + Bearish FVG displacement")
+            if has_ob:
+                short_points += 5.0
+                reasons.append("High-confluence: Bearish Order Block mitigation")
 
-        if smc_res.get("order_block"):
-            ob_type = (smc_res.get("order_block_zone") or {}).get("type", "")
-            if ob_type == "BULLISH_OB":
-                long_points += weights.smc_structure * 0.5
-                reasons.append("Bullish Institutional Order Block active")
-            elif ob_type == "BEARISH_OB":
-                short_points += weights.smc_structure * 0.5
-                reasons.append("Bearish Institutional Order Block active")
+        # Premium / Discount Valuation Filter (Prevents buying the top / shorting the bottom)
+        if prem_disc == "DISCOUNT":
+            long_points += 8.0
+            short_points -= 10.0
+            reasons.append("Price in institutional DISCOUNT zone (Favorable for LONG)")
+        elif prem_disc == "PREMIUM":
+            short_points += 8.0
+            long_points -= 10.0
+            reasons.append("Price in institutional PREMIUM zone (Favorable for SHORT)")
 
-        # B. Liquidity Sweeps (15 pts)
-        if smc_res.get("liquidity_sweep"):
-            sweep_dir = smc_res.get("sweep_direction", "")
-            if sweep_dir == "BUY_SIDE_SWEEP":
-                long_points += weights.liquidity_sweeps
-                reasons.append("Sell-side liquidity swept below swing low (Bullish bounce)")
-            elif sweep_dir == "SELL_SIDE_SWEEP":
-                short_points += weights.liquidity_sweeps
-                reasons.append("Buy-side liquidity swept above swing high (Bearish rejection)")
-
-        # C. Multi-Timeframe Trend Alignment (15 pts)
+        # B. Multi-Timeframe Trend & EMA Alignment (15 pts)
         trend_score = ind_res.get("trend_score", 0)
         if trend_score > 0:
             long_points += weights.mtf_trend_alignment
-            reasons.append("Trend alignment: Price > EMA20 > EMA50")
+            reasons.append("Trend alignment: Price > EMA20 > EMA50 > EMA200")
         elif trend_score < 0:
             short_points += weights.mtf_trend_alignment
-            reasons.append("Trend alignment: Price < EMA20 < EMA50")
+            reasons.append("Trend alignment: Price < EMA20 < EMA50 < EMA200")
 
-        # D. Volume Profile POC & Value Area (10 pts)
+        # C. Volume Profile POC & Value Area (10 pts)
         va_pos = vp_res.get("position_relative_to_va", "INSIDE")
         poc_price = vp_res.get("poc", current_price)
         if va_pos == "BELOW_VAL" and current_price > poc_price * 0.995:
@@ -140,9 +149,9 @@ class Agent2TechnicalSMC:
             reasons.append("Volume Profile: Value Area High rejection & mean reversion")
         elif va_pos == "ABOVE_VAH":
             long_points += weights.volume_profile * 0.7
-            reasons.append("Volume Profile: Acceptance above Value Area High")
+            reasons.append("Volume Profile: Value Area breakout expansion")
 
-        # E. Market Profile Initial Balance (10 pts)
+        # D. Market Profile Initial Balance (10 pts)
         mp_ext = mp_res.get("ib_extension", "WITHIN_IB")
         if mp_ext == "BULLISH_EXTENSION":
             long_points += weights.market_profile
@@ -151,7 +160,7 @@ class Agent2TechnicalSMC:
             short_points += weights.market_profile
             reasons.append("Market Profile: Bearish Initial Balance Range Extension")
 
-        # F. VWAP & Bands (10 pts)
+        # E. VWAP & Bands (10 pts)
         vwap_pos = vwap_res.get("position", "AT_VWAP")
         if vwap_pos == "ABOVE":
             long_points += weights.vwap_position
@@ -160,17 +169,17 @@ class Agent2TechnicalSMC:
             short_points += weights.vwap_position
             reasons.append("Price trading below VWAP resistance")
 
-        # G. Momentum RSI / MACD (10 pts)
+        # F. Momentum RSI / MACD (10 pts)
         rsi = ind_res.get("rsi", 50.0)
         macd_hist = ind_res.get("macd_hist", 0.0)
-        if 40.0 <= rsi <= 65.0 and macd_hist > 0:
+        if 42.0 <= rsi <= 68.0 and macd_hist > 0:
             long_points += weights.momentum_rsi_macd
-            reasons.append(f"Bullish momentum: RSI={rsi:.1f}, MACD hist expanding positive")
-        elif 35.0 <= rsi <= 60.0 and macd_hist < 0:
+            reasons.append(f"Bullish momentum: RSI={rsi:.1f}, MACD positive")
+        elif 32.0 <= rsi <= 58.0 and macd_hist < 0:
             short_points += weights.momentum_rsi_macd
-            reasons.append(f"Bearish momentum: RSI={rsi:.1f}, MACD hist expanding negative")
+            reasons.append(f"Bearish momentum: RSI={rsi:.1f}, MACD negative")
 
-        # H. Volatility Compatibility (10 pts)
+        # G. Volatility Compatibility (10 pts)
         vol_score = vol_res.get("volatility_score", 5.0)
         long_points += vol_score
         short_points += vol_score

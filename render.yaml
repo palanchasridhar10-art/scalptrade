@@ -2,8 +2,8 @@ services:
   - type: web
     name: scalptrade
     runtime: python
-    buildCommand: pip install --upgrade pip && pip install -r requirements.txt
-    startCommand: python main.py --mode PAPER --serve
+    buildCommand: pip3 install --upgrade pip && pip3 install -r requirements.txt
+    startCommand: python3 main.py --mode PAPER --serve
     envVars:
       - key: PYTHON_VERSION
         value: 3.11.8
