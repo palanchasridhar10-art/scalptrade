@@ -1,0 +1,13 @@
+services:
+  - type: web
+    name: scalptrade
+    runtime: python
+    buildCommand: pip install --upgrade pip && pip install -r requirements.txt
+    startCommand: python main.py --mode PAPER --serve
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.8
+      - key: TRADING_MODE
+        value: PAPER
+      - key: HOST
+        value: 0.0.0.0

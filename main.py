@@ -37,19 +37,21 @@ async def run_backtest_cli():
     print(f"Total Slippage Incurred: ${m['total_slippage_usd']}")
     print("="*55 + "\n")
 
+import os
+
 def main():
+    default_port = int(os.environ.get("PORT", 8000))
+    default_host = os.environ.get("HOST", "0.0.0.0")
+    
     parser = argparse.ArgumentParser(description="Autonomous Crypto Scalping Agent — 3-Agent Architecture")
-    parser.add_argument("--mode", choices=["BACKTEST", "PAPER", "LIVE"], default="PAPER", help="System runtime mode")
-    parser.add_argument("--serve", action="store_true", help="Launch FastAPI web monitoring dashboard")
-    parser.add_argument("--port", type=int, default=8000, help="Web dashboard port")
-    parser.add_argument("--host", type=str, default="127.0.0.1", help="Web dashboard host")
+    parser.add_argument("--mode", choices=["BACKTEST", "PAPER", "LIVE"], default=os.environ.get("TRADING_MODE", "PAPER"), help="System runtime mode")
+    parser.add_argument("--serve", action="store_true", default=True, help="Launch FastAPI web monitoring dashboard")
+    parser.add_argument("--port", type=int, default=default_port, help="Web dashboard port")
+    parser.add_argument("--host", type=str, default=default_host, help="Web dashboard host")
     
     args = parser.parse_args()
 
-    if args.serve:
-        logger.info(f"Starting Web Dashboard & Telemetry Server on http://{args.host}:{args.port}")
-        uvicorn.run("monitoring.server:app", host=args.host, port=args.port, reload=False, log_level="info")
-    elif args.mode == "BACKTEST":
+    if args.mode == "BACKTEST" and not args.serve:
         asyncio.run(run_backtest_cli())
     else:
         logger.info(f"Starting Autonomous Scalper in {args.mode} mode...")
