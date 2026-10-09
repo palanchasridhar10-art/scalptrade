@@ -342,9 +342,13 @@ async def get_strategy_memory():
 
 @app.post("/api/backtest/run")
 async def run_backtest_endpoint():
-    engine = BacktestEngine(symbol=primary_symbol, initial_capital=settings.initial_capital)
-    result = await engine.run()
-    return JSONResponse(content=result)
+    try:
+        engine = BacktestEngine(symbol=primary_symbol, initial_capital=settings.initial_capital)
+        result = await engine.run()
+        return JSONResponse(content=result)
+    except Exception as e:
+        logger.error(f"Backtest endpoint error: {e}", exc_info=True)
+        return JSONResponse(status_code=500, content={"error": str(e), "message": "Backtest execution encountered an error"})
 
 @app.post("/api/kill-switch")
 async def trigger_kill_switch_endpoint():

@@ -22,7 +22,8 @@ class PositionLifecycleManager:
         position: Position,
         current_price: float,
         agent1: Optional[Agent1Signal] = None,
-        agent2: Optional[Agent2Signal] = None
+        agent2: Optional[Agent2Signal] = None,
+        current_time: Optional[datetime] = None
     ) -> Dict[str, Any]:
         """
         Monitors active positions and identifies exit triggers.
@@ -32,6 +33,8 @@ class PositionLifecycleManager:
         risk_dist = abs(position.entry_price - position.stop_loss)
         if risk_dist <= 0:
             risk_dist = position.entry_price * 0.005
+
+        now = current_time or current_utc()
 
         # 1. Stop Loss Hit
         if position.direction == "LONG" and current_price <= position.stop_loss:
@@ -67,7 +70,7 @@ class PositionLifecycleManager:
                 return {"should_exit": True, "reason": "OPPOSING_STRUCTURE_BREAK", "exit_price": current_price}
 
         # 5. Time Stop (Scalp position held too long without resolving)
-        holding_mins = (current_utc() - position.entry_time).total_seconds() / 60.0
+        holding_mins = (now - position.entry_time).total_seconds() / 60.0
         if holding_mins >= self.max_holding_time_minutes:
             return {"should_exit": True, "reason": "TIME_DECAY_STOP", "exit_price": current_price}
 

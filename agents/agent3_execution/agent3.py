@@ -61,11 +61,11 @@ class Agent3DecisionRiskExecution:
         if symbol in account.positions:
             pos = account.positions[symbol]
             exit_check = self.position_manager.check_position(
-                pos, current_price, agent1_sig, agent2_sig
+                pos, current_price, agent1_sig, agent2_sig, current_time=now
             )
             if exit_check["should_exit"]:
                 logger.info(f"Position exit triggered for {symbol}: {exit_check['reason']}")
-                await self.exchange.close_position(symbol, reason=exit_check["reason"])
+                await self.exchange.close_position(symbol, reason=exit_check["reason"], timestamp=now)
 
         # 2. Decision / Signal Fusion Check
         fusion_res = self.fusion.fuse(agent1_sig, agent2_sig, spread_bps, is_fresh)
@@ -196,7 +196,8 @@ class Agent3DecisionRiskExecution:
             quantity=size_res["quantity"],
             stop_loss=setup["stop_loss"],
             take_profit_1=setup["take_profit_1"],
-            take_profit_2=setup["take_profit_2"]
+            take_profit_2=setup["take_profit_2"],
+            timestamp=now
         )
 
         self.risk_engine.record_execution(timestamp=now)

@@ -592,54 +592,122 @@ async function fetchMemory() {
 
 async function runBacktest() {
   const btn = document.getElementById("btn-backtest");
-  btn.textContent = "Running...";
-  btn.disabled = true;
+  if (btn) {
+    btn.textContent = "Running Simulation...";
+    btn.disabled = true;
+  }
 
   try {
     const res = await fetch("/api/backtest/run", { method: "POST" });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.error || err.message || `HTTP ${res.status}`);
+    }
     const result = await res.json();
     
     switchTab('backtest');
     
-    const m = result.metrics;
-    document.getElementById("bt-winrate").textContent = `${m.win_rate_pct}% (${m.winning_trades}W / ${m.losing_trades}L)`;
-    document.getElementById("bt-pf").textContent = `${m.profit_factor}`;
-    document.getElementById("bt-exp").textContent = `+${m.expectancy_r} R ($${m.net_profit_usd})`;
-    document.getElementById("bt-dd").textContent = `-${m.max_drawdown_pct}% ($${m.max_drawdown_usd})`;
+    const m = result.metrics || {};
+    const winRate = m.win_rate_pct !== undefined ? m.win_rate_pct : 0.0;
+    const wins = m.winning_trades !== undefined ? m.winning_trades : 0;
+    const losses = m.losing_trades !== undefined ? m.losing_trades : 0;
+    const pf = m.profit_factor !== undefined ? m.profit_factor : 0.0;
+    const expR = m.expectancy_r !== undefined ? m.expectancy_r : 0.0;
+    const netProfit = m.net_profit_usd !== undefined ? m.net_profit_usd : 0.0;
+    const ddPct = m.max_drawdown_pct !== undefined ? m.max_drawdown_pct : 0.0;
+    const ddUsd = m.max_drawdown_usd !== undefined ? m.max_drawdown_usd : 0.0;
 
-    drawBacktestCurve(result.equity_curve);
+    document.getElementById("bt-winrate").textContent = `${winRate.toFixed(1)}% (${wins}W / ${losses}L)`;
+    document.getElementById("bt-pf").textContent = `${pf.toFixed(2)}`;
+    document.getElementById("bt-exp").textContent = `${expR >= 0 ? '+' : ''}${expR.toFixed(2)} R (${netProfit >= 0 ? '+' : ''}$${netProfit.toFixed(2)})`;
+    document.getElementById("bt-dd").textContent = `-${ddPct.toFixed(1)}% ($${ddUsd.toFixed(2)})`;
+
+    backtestEquity = result.equity_curve || [];
+    setTimeout(() => {
+      drawBacktestCurve(backtestEquity);
+    }, 50);
   } catch (e) {
-    alert("Backtest failed: " + e.message);
+    console.error("Backtest execution error:", e);
+    alert("Backtest error: " + e.message);
   } finally {
-    btn.textContent = "Run Backtest";
-    btn.disabled = false;
+    if (btn) {
+      btn.textContent = "Run Backtest";
+      btn.disabled = false;
+    }
   }
 }
 
 function drawBacktestCurve(curve) {
   const canvas = document.getElementById("backtestChart");
   if (!canvas || !curve || curve.length === 0) return;
-  const ctx = canvas.getContext("2d");
-  const w = canvas.width;
-  const h = canvas.height;
+  
+  const dpr = window.devicePixelRatio || 1;
+  const rect = canvas.getBoundingClientRect();
+  const width = (rect.width > 0 ? rect.width : 800) * dpr;
+  const height = (rect.height > 0 ? rect.height : 220) * dpr;
+  
+  canvas.width = width;
+  canvas.height = height;
 
-  ctx.clearRect(0, 0, w, h);
+  const ctx = canvas.getContext("2d");
+  ctx.clearRect(0, 0, width, height);
+
   const equities = curve.map(c => c.equity);
   const minE = Math.min(...equities) * 0.998;
   const maxE = Math.max(...equities) * 1.002;
-  const range = maxE - minE;
+  const range = maxE - minE || 1.0;
+
+  // Grid lines
+  ctx.strokeStyle = "rgba(255, 255, 255, 0.05)";
+  ctx.lineWidth = 1;
+  for (let i = 1; i <= 4; i++) {
+    const y = (height / 5) * i;
+    ctx.beginPath();
+    ctx.moveTo(0, y);
+    ctx.lineTo(width, y);
+    ctx.stroke();
+  }
+
+  // Draw Gradient Area Fill under Curve
+  const grad = ctx.createLinearGradient(0, 0, 0, height);
+  grad.addColorStop(0, "rgba(16, 185, 129, 0.25)");
+  grad.addColorStop(1, "rgba(16, 185, 129, 0.0)");
 
   ctx.beginPath();
   curve.forEach((c, idx) => {
-    const x = (w / (curve.length - 1)) * idx;
-    const y = h - ((c.equity - minE) / range) * (h * 0.8) - (h * 0.1);
+    const x = (width / (curve.length - 1)) * idx;
+    const y = height - ((c.equity - minE) / range) * (height * 0.75) - (height * 0.12);
+    if (idx === 0) ctx.moveTo(x, y);
+    else ctx.lineTo(x, y);
+  });
+  ctx.lineTo(width, height);
+  ctx.lineTo(0, height);
+  ctx.closePath();
+  ctx.fillStyle = grad;
+  ctx.fill();
+
+  // Draw Main Equity Line
+  ctx.beginPath();
+  curve.forEach((c, idx) => {
+    const x = (width / (curve.length - 1)) * idx;
+    const y = height - ((c.equity - minE) / range) * (height * 0.75) - (height * 0.12);
     if (idx === 0) ctx.moveTo(x, y);
     else ctx.lineTo(x, y);
   });
 
   ctx.strokeStyle = "#10b981";
-  ctx.lineWidth = 2.5;
+  ctx.lineWidth = 2.5 * dpr;
+  ctx.shadowColor = "rgba(16, 185, 129, 0.5)";
+  ctx.shadowBlur = 8 * dpr;
   ctx.stroke();
+  ctx.shadowBlur = 0;
+
+  // Draw End Equity Label
+  const lastE = equities[equities.length - 1];
+  const lastY = height - ((lastE - minE) / range) * (height * 0.75) - (height * 0.12);
+  ctx.fillStyle = "#10b981";
+  ctx.font = `bold ${12 * dpr}px sans-serif`;
+  ctx.fillText(`$${lastE.toLocaleString('en-US', {minimumFractionDigits:2, maximumFractionDigits:2})}`, width - (100 * dpr), lastY - (8 * dpr));
 }
 
 async function triggerKillSwitch() {

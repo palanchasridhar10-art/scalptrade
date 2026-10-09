@@ -115,7 +115,7 @@ class BacktestEngine:
         warmup_bars = 40
         for i in range(min(warmup_bars, len(df))):
             row = df.iloc[i]
-            for tf in ["1M", "5M", "15M", "1H"]:
+            for tf in ["1M", "5M", "15M", "1H", "1D"]:
                 c = Candle(
                     symbol=self.symbol,
                     timeframe=tf,
@@ -135,7 +135,7 @@ class BacktestEngine:
             row = df.iloc[i]
             sim_time = row["open_time"]
 
-            for tf in ["1M", "5M", "15M", "1H"]:
+            for tf in ["1M", "5M", "15M", "1H", "1D"]:
                 c = Candle(
                     symbol=self.symbol,
                     timeframe=tf,
@@ -208,6 +208,12 @@ class BacktestEngine:
                 "price": cur_price
             })
 
+        # Close any lingering open position at end of backtest
+        account = await exchange.get_account_state()
+        if self.symbol in account.positions:
+            last_time = df.iloc[-1]["open_time"]
+            await exchange.close_position(self.symbol, reason="BACKTEST_END_FLATTEN", timestamp=last_time)
+
         # Process closed trades from exchange
         account = await exchange.get_account_state()
         trade_records: List[TradeRecord] = []
@@ -243,7 +249,7 @@ class BacktestEngine:
         
         return {
             "metrics": metrics,
-            "closed_trades": [t.model_dump() for t in trade_records],
+            "closed_trades": [t.model_dump(mode="json") for t in trade_records],
             "equity_curve": equity_history,
             "decisions_count": len(decisions_history),
             "decisions": decisions_history
