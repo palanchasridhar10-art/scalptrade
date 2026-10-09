@@ -54,8 +54,8 @@ class Agent2TechnicalSMC:
         # 2. SMC Structure (5M / 15M)
         smc_res = self.smc.analyze(df_5m if len(df_5m) >= 15 else df_1m)
         
-        # 3. Liquidity Engine (1D & 1H key levels)
-        liq_res = self.liquidity.analyze(df_1d, df_1h, current_price)
+        # 3. Liquidity Engine & Limit Orders Heatmap (1D/1H Key Levels + L2 Limit Depth)
+        liq_res = self.liquidity.analyze(df_1d, df_1h, current_price, buffer.orderbook)
         
         # 4. Volume Profile (15M / 1H)
         vp_res = self.volume_profile.analyze(df_15m if len(df_15m) >= 10 else df_1m, current_price)
@@ -129,7 +129,21 @@ class Agent2TechnicalSMC:
             long_points -= 10.0
             reasons.append("Price in institutional PREMIUM zone (Favorable for SHORT)")
 
-        # B. Multi-Timeframe Trend & EMA Alignment (15 pts)
+        # B. Limit Order Heatmap & Resting Wall Defense (15 pts)
+        hm_bias = liq_res.get("heatmap_bias", "NEUTRAL")
+        bid_wall = liq_res.get("nearest_major_bid_wall")
+        ask_wall = liq_res.get("nearest_major_ask_wall")
+        
+        if hm_bias == "SUPPORT":
+            long_points += 8.0
+            wall_text = f" @ ${bid_wall:,.2f}" if bid_wall else ""
+            reasons.append(f"Agent 2 Heatmap: Heavy resting Limit Bid Wall support{wall_text}")
+        elif hm_bias == "RESISTANCE":
+            short_points += 8.0
+            wall_text = f" @ ${ask_wall:,.2f}" if ask_wall else ""
+            reasons.append(f"Agent 2 Heatmap: Heavy resting Limit Ask Wall resistance{wall_text}")
+
+        # C. Multi-Timeframe Trend & EMA Alignment (15 pts)
         trend_score = ind_res.get("trend_score", 0)
         if trend_score > 0:
             long_points += weights.mtf_trend_alignment

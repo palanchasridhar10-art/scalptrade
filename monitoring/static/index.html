@@ -143,19 +143,19 @@
           <div id="a2-sweep" class="metric-data text-green">Asian Low Swept</div>
         </div>
         <div class="metric-box">
-          <div class="metric-label">VWAP & Bands</div>
-          <div id="a2-vwap" class="metric-data">Holding Above (+0.2%)</div>
+          <div class="metric-label">Limit Wall Defense</div>
+          <div id="a2-limit-wall" class="metric-data text-cyan">Bid Wall @ $67,200</div>
         </div>
         <div class="metric-box">
-          <div class="metric-label">Kelly Sizing</div>
-          <div id="a2-kelly" class="metric-data">0.45% Equity</div>
+          <div class="metric-label">VWAP & Valuation</div>
+          <div id="a2-vwap" class="metric-data">Holding Above (Discount)</div>
         </div>
       </div>
-      <div class="card-title" style="margin-bottom:8px;">Structural Evidence</div>
+      <div class="card-title" style="margin-bottom:8px;">Structural & Heatmap Evidence</div>
       <ul id="a2-reasons" class="reasons-list">
         <li>Sell-side liquidity swept below swing low</li>
-        <li>Bullish Fair Value Gap (FVG) imbalance zone</li>
-        <li>Price holding firmly above VWAP</li>
+        <li>Resting Limit Bid Wall defense active at $67,200.00</li>
+        <li>Price holding firmly above VWAP in Discount zone</li>
       </ul>
     </div>
 
@@ -206,22 +206,26 @@
 
     <!-- Order Book & Heatmap Ladder -->
     <div class="card col-4">
-      <div class="card-title">Order Book Depth & Heatmap</div>
+      <div class="card-title">
+        <span>Resting Limit Orders Heatmap</span>
+        <span id="heatmap-bias-badge" class="badge badge-live">BID SUPPORT</span>
+      </div>
       <div class="orderbook-ladder" id="orderbook-view">
-        <div class="ob-row ob-ask"><span>67,460.00</span><span>18.42 BTC (Cluster)</span></div>
-        <div class="ob-row ob-ask"><span>67,440.00</span><span>8.15 BTC</span></div>
-        <div class="ob-row ob-ask"><span>67,425.00</span><span>3.20 BTC</span></div>
-        <div style="text-align:center; padding:4px 0; font-weight:bold; color:var(--accent-cyan);">─── SPREAD: $0.50 (0.7 bps) ───</div>
-        <div class="ob-row ob-bid"><span>67,419.50</span><span>4.10 BTC</span></div>
-        <div class="ob-row ob-bid"><span>67,400.00</span><span>12.80 BTC</span></div>
-        <div class="ob-row ob-bid"><span>67,380.00</span><span>24.50 BTC (Defense Wall)</span></div>
+        <div class="ob-row ob-ask"><span class="ob-price">$67,550.00</span><span class="ob-amt">24.50 BTC</span><span class="ob-tag">[ASK WALL]</span></div>
+        <div class="ob-row ob-ask"><span class="ob-price">$67,500.00</span><span class="ob-amt">12.10 BTC</span></div>
+        <div class="ob-row ob-ask"><span class="ob-price">$67,450.00</span><span class="ob-amt">5.80 BTC</span></div>
+        <div id="ob-mid-spread" style="text-align:center; padding:6px 0; font-weight:bold; color:var(--accent-cyan); font-size:11px; background:rgba(0,242,254,0.05); border-radius:4px; margin:4px 0;">─── BTC MID PRICE: $67,420.50 | SPREAD: 0.8 bps ───</div>
+        <div class="ob-row ob-bid"><span class="ob-price">$67,400.00</span><span class="ob-amt">6.40 BTC</span></div>
+        <div class="ob-row ob-bid"><span class="ob-price">$67,350.00</span><span class="ob-amt">14.80 BTC</span></div>
+        <div class="ob-row ob-bid"><span class="ob-price">$67,200.00</span><span class="ob-amt">38.90 BTC</span><span class="ob-tag">[BID DEFENSE]</span></div>
       </div>
     </div>
 
-    <!-- Bottom Tabs: Trade Journal / Backtest Results / Strategy Memory -->
+    <!-- Bottom Tabs: Trade Journal / Backtest Results / Strategy Memory / Limit Orders Heatmap -->
     <div class="card col-12">
       <div class="tabs">
         <div class="tab-item active" onclick="switchTab('trades')">Episodic Trade Journal</div>
+        <div class="tab-item" onclick="switchTab('heatmap')">Bitcoin Limit Orders & Liquidity Heatmap</div>
         <div class="tab-item" onclick="switchTab('memory')">Strategy Knowledge Matrix</div>
         <div class="tab-item" onclick="switchTab('backtest')">Backtest Performance Report</div>
       </div>
@@ -256,6 +260,51 @@
               <td>A1: 88.5 | A2: 92.0</td>
               <td>89.8%</td>
               <td>TAKE_PROFIT_2_REACHED</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div id="tab-heatmap" style="display:none;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+          <div style="font-size:13px; color:var(--text-secondary);">
+            Real-time resting limit order depth on <strong>Bitcoin (BTCUSDT)</strong> analyzed by <strong>Agent 2 (Liquidity & SMC Engine)</strong>.
+          </div>
+          <div style="display:flex; gap:12px;">
+            <div id="heatmap-total-bids" class="portfolio-badge badge-pnl-pos">Total Bid Depth: 185.4 BTC</div>
+            <div id="heatmap-total-asks" class="portfolio-badge badge-pnl-neg">Total Ask Depth: 142.1 BTC</div>
+          </div>
+        </div>
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Side</th>
+              <th>Bitcoin Limit Price</th>
+              <th>Resting Depth (BTC)</th>
+              <th>Notional (USD)</th>
+              <th>Distance from Spot</th>
+              <th>Visual Heat Density</th>
+              <th>Institutional Level Classification</th>
+            </tr>
+          </thead>
+          <tbody id="heatmap-table-tbody">
+            <tr>
+              <td><span class="text-red">LIMIT ASK</span></td>
+              <td>$67,800.00</td>
+              <td>42.50 BTC</td>
+              <td>$2,881,500.00</td>
+              <td>+0.56%</td>
+              <td><div class="heat-bar-bg"><div class="heat-bar-fill heat-ask" style="width:85%;"></div></div></td>
+              <td><span class="badge badge-paper">BUY-SIDE LIQUIDITY POOL (PWH)</span></td>
+            </tr>
+            <tr>
+              <td><span class="text-green">LIMIT BID</span></td>
+              <td>$67,200.00</td>
+              <td>58.90 BTC</td>
+              <td>$3,958,080.00</td>
+              <td>-0.33%</td>
+              <td><div class="heat-bar-bg"><div class="heat-bar-fill heat-bid" style="width:95%;"></div></div></td>
+              <td><span class="badge badge-live">INSTITUTIONAL BID WALL DEFENSE</span></td>
             </tr>
           </tbody>
         </table>

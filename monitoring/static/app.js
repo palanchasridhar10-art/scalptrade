@@ -301,11 +301,149 @@ function updateDashboard(data) {
     }
   }
 
+  // 4. Limit Orders & Heatmap Depth (Agent 2 Analysis)
+  updateHeatmapAndOrderbook(data);
+
   // 5. Automatically refresh Trade Journal when trade count changes
   if (p.total_trades !== undefined && p.total_trades !== lastTradeCount) {
     lastTradeCount = p.total_trades;
     fetchTrades();
     fetchMemory();
+  }
+}
+
+function updateHeatmapAndOrderbook(data) {
+  const a2 = data.agent2 || {};
+  const liq = a2.details?.liquidity || {};
+  const mkt = data.market || {};
+  const currentPrice = mkt.price || 67000.0;
+  const spreadBps = mkt.spread_bps || 0.8;
+
+  const restingBids = liq.resting_bids || [];
+  const restingAsks = liq.resting_asks || [];
+  const heatmapBias = liq.heatmap_bias || "NEUTRAL";
+  const totalBids = liq.total_bid_volume_btc || 0;
+  const totalAsks = liq.total_ask_volume_btc || 0;
+
+  // 1. Update Bias Badge
+  const biasBadge = document.getElementById("heatmap-bias-badge");
+  if (biasBadge) {
+    if (heatmapBias === "SUPPORT") {
+      biasBadge.textContent = "BID WALL SUPPORT";
+      biasBadge.className = "badge badge-live";
+    } else if (heatmapBias === "RESISTANCE") {
+      biasBadge.textContent = "ASK WALL RESISTANCE";
+      biasBadge.className = "badge badge-pnl-neg";
+    } else {
+      biasBadge.textContent = "NEUTRAL DEPTH";
+      biasBadge.className = "badge badge-paper";
+    }
+  }
+
+  // 2. Update Total Bids and Asks Badges in Heatmap Tab
+  const totalBidsEl = document.getElementById("heatmap-total-bids");
+  if (totalBidsEl) {
+    totalBidsEl.textContent = `Total Bid Depth: ${totalBids.toFixed(1)} BTC`;
+  }
+  const totalAsksEl = document.getElementById("heatmap-total-asks");
+  if (totalAsksEl) {
+    totalAsksEl.textContent = `Total Ask Depth: ${totalAsks.toFixed(1)} BTC`;
+  }
+
+  // 3. Update Upper Order Book Ladder Card
+  const obView = document.getElementById("orderbook-view");
+  if (obView && (restingBids.length > 0 || restingAsks.length > 0)) {
+    const topAsks = restingAsks.slice(0, 3).reverse();
+    const topBids = restingBids.slice(0, 3);
+
+    let html = "";
+    topAsks.forEach(a => {
+      const tagHtml = a.is_wall ? `<span class="ob-tag">[ASK WALL]</span>` : (a.tag && a.tag.includes("LIQUIDITY") ? `<span class="ob-tag">[BSL POOL]</span>` : "");
+      html += `
+        <div class="ob-row ob-ask">
+          <span class="ob-price">$${Number(a.price).toLocaleString('en-US', {minimumFractionDigits:2, maximumFractionDigits:2})}</span>
+          <span class="ob-amt">${Number(a.amount_btc).toFixed(2)} BTC</span>
+          ${tagHtml}
+        </div>
+      `;
+    });
+
+    html += `
+      <div id="ob-mid-spread" style="text-align:center; padding:6px 0; font-weight:bold; color:var(--accent-cyan); font-size:11px; background:rgba(0,242,254,0.05); border-radius:4px; margin:4px 0;">
+        ─── BTC SPOT: $${Number(currentPrice).toLocaleString('en-US', {minimumFractionDigits:2, maximumFractionDigits:2})} | SPREAD: ${Number(spreadBps).toFixed(1)} bps ───
+      </div>
+    `;
+
+    topBids.forEach(b => {
+      const tagHtml = b.is_wall ? `<span class="ob-tag">[BID DEFENSE]</span>` : (b.tag && b.tag.includes("LIQUIDITY") ? `<span class="ob-tag">[SSL POOL]</span>` : "");
+      html += `
+        <div class="ob-row ob-bid">
+          <span class="ob-price">$${Number(b.price).toLocaleString('en-US', {minimumFractionDigits:2, maximumFractionDigits:2})}</span>
+          <span class="ob-amt">${Number(b.amount_btc).toFixed(2)} BTC</span>
+          ${tagHtml}
+        </div>
+      `;
+    });
+
+    obView.innerHTML = html;
+  }
+
+  // 4. Update Tab Heatmap Table Tbody
+  const heatmapTbody = document.getElementById("heatmap-table-tbody");
+  if (heatmapTbody) {
+    const allLevels = [];
+    const sortedAsks = [...restingAsks].sort((a, b) => b.price - a.price);
+    sortedAsks.forEach(a => allLevels.push({ ...a, side: "ASK" }));
+
+    const sortedBids = [...restingBids].sort((a, b) => b.price - a.price);
+    sortedBids.forEach(b => allLevels.push({ ...b, side: "BID" }));
+
+    if (allLevels.length > 0) {
+      const maxVol = Math.max(...allLevels.map(l => l.amount_btc || 1.0), 1.0);
+
+      heatmapTbody.innerHTML = allLevels.map(item => {
+        const isAsk = item.side === "ASK";
+        const sideHtml = isAsk 
+          ? `<span class="text-red" style="font-weight:700;">LIMIT ASK</span>` 
+          : `<span class="text-green" style="font-weight:700;">LIMIT BID</span>`;
+        
+        const dist = item.distance_pct !== undefined ? item.distance_pct : ((item.price - currentPrice) / currentPrice * 100);
+        const distStr = `${dist >= 0 ? '+' : ''}${dist.toFixed(2)}%`;
+        const barPct = Math.min(100, Math.max(12, ((item.amount_btc || 1.0) / maxVol) * 100));
+
+        let badgeClass = "badge-paper";
+        let tagLabel = isAsk ? "RESTING LIMIT ASK" : "RESTING LIMIT BID";
+        if (item.tag === "INSTITUTIONAL_BID_WALL") {
+          badgeClass = "badge-wall";
+          tagLabel = "INSTITUTIONAL BID WALL DEFENSE";
+        } else if (item.tag === "INSTITUTIONAL_ASK_WALL") {
+          badgeClass = "badge-wall";
+          tagLabel = "INSTITUTIONAL ASK WALL DEFENSE";
+        } else if (item.tag === "BUY_SIDE_LIQUIDITY_POOL") {
+          badgeClass = "badge-pool";
+          tagLabel = "BUY-SIDE LIQUIDITY POOL (BSL)";
+        } else if (item.tag === "SELL_SIDE_LIQUIDITY_POOL") {
+          badgeClass = "badge-sweep";
+          tagLabel = "SELL-SIDE LIQUIDITY POOL (SSL)";
+        }
+
+        return `
+          <tr>
+            <td>${sideHtml}</td>
+            <td style="font-family:'JetBrains Mono',monospace; font-weight:700; color:var(--text-primary);">$${Number(item.price).toLocaleString('en-US', {minimumFractionDigits:2, maximumFractionDigits:2})}</td>
+            <td style="font-family:'JetBrains Mono',monospace; font-weight:600;">${Number(item.amount_btc).toFixed(3)} BTC</td>
+            <td style="color:var(--text-secondary);">$${Number(item.notional_usd).toLocaleString('en-US', {minimumFractionDigits:2, maximumFractionDigits:2})}</td>
+            <td style="font-family:'JetBrains Mono',monospace; color:${dist >= 0 ? 'var(--accent-red)' : 'var(--accent-green)'};">${distStr}</td>
+            <td style="min-width:140px;">
+              <div class="heat-bar-bg">
+                <div class="heat-bar-fill ${isAsk ? 'heat-ask' : 'heat-bid'}" style="width:${barPct}%;"></div>
+              </div>
+            </td>
+            <td><span class="badge ${badgeClass}">${tagLabel}</span></td>
+          </tr>
+        `;
+      }).join('');
+    }
   }
 }
 
@@ -372,19 +510,25 @@ function drawPriceChart() {
 function switchTab(tabId) {
   document.querySelectorAll(".tab-item").forEach(t => t.classList.remove("active"));
   document.getElementById("tab-trades").style.display = "none";
+  const hmTab = document.getElementById("tab-heatmap");
+  if (hmTab) hmTab.style.display = "none";
   document.getElementById("tab-memory").style.display = "none";
   document.getElementById("tab-backtest").style.display = "none";
 
+  const tabItems = document.querySelectorAll(".tab-item");
   if (tabId === 'trades') {
-    document.querySelectorAll(".tab-item")[0].classList.add("active");
+    if (tabItems[0]) tabItems[0].classList.add("active");
     document.getElementById("tab-trades").style.display = "block";
     fetchTrades();
+  } else if (tabId === 'heatmap') {
+    if (tabItems[1]) tabItems[1].classList.add("active");
+    if (hmTab) hmTab.style.display = "block";
   } else if (tabId === 'memory') {
-    document.querySelectorAll(".tab-item")[1].classList.add("active");
+    if (tabItems[2]) tabItems[2].classList.add("active");
     document.getElementById("tab-memory").style.display = "block";
     fetchMemory();
   } else if (tabId === 'backtest') {
-    document.querySelectorAll(".tab-item")[2].classList.add("active");
+    if (tabItems[3]) tabItems[3].classList.add("active");
     document.getElementById("tab-backtest").style.display = "block";
   }
 }
