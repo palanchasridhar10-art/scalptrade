@@ -92,8 +92,7 @@ def init_sample_data():
             symbol=primary_symbol,
             trade_id=f"seed_{k}",
             price=base_price + (k * 0.5),
-            amount=1.5 + (k % 4) * 0.5,
-            side=side,
+            quantity=1.5 + (k % 4) * 0.5,
             is_buyer_maker=(side == "SELL"),
             timestamp=trade_time
         )
@@ -136,8 +135,7 @@ async def autonomous_trading_engine_loop():
                 symbol=primary_symbol,
                 trade_id=f"t_{int(now.timestamp())}_{tick_counter}",
                 price=round(current_price, 2),
-                amount=round(trade_amt, 4),
-                side=trade_side,
+                quantity=round(trade_amt, 4),
                 is_buyer_maker=(trade_side == "SELL"),
                 timestamp=now
             )
