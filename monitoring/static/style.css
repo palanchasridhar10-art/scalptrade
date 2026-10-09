@@ -445,6 +445,143 @@ canvas {
   border-bottom-color: var(--accent-cyan);
 }
 
+/* Trade Execution Toast / Bubble Notification */
+.toast-container {
+  position: fixed;
+  top: 80px;
+  right: 28px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  z-index: 1000;
+  pointer-events: none;
+}
+
+.toast-bubble {
+  pointer-events: auto;
+  min-width: 320px;
+  max-width: 420px;
+  background: rgba(15, 23, 42, 0.92);
+  backdrop-filter: blur(16px);
+  border-radius: var(--radius-md);
+  padding: 16px 20px;
+  box-shadow: 0 12px 36px rgba(0, 0, 0, 0.6), inset 0 1px 0 rgba(255, 255, 255, 0.1);
+  animation: toastSlideIn 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  transition: all 0.3s ease;
+  position: relative;
+  overflow: hidden;
+}
+
+.toast-bubble::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 4px;
+  height: 100%;
+}
+
+.toast-bubble.toast-buy {
+  border: 1px solid rgba(16, 185, 129, 0.4);
+  box-shadow: 0 12px 36px rgba(16, 185, 129, 0.2);
+}
+.toast-bubble.toast-buy::before { background: var(--accent-green); }
+
+.toast-bubble.toast-sell {
+  border: 1px solid rgba(239, 68, 68, 0.4);
+  box-shadow: 0 12px 36px rgba(239, 68, 68, 0.2);
+}
+.toast-bubble.toast-sell::before { background: var(--accent-red); }
+
+.toast-bubble.toast-tp {
+  border: 1px solid rgba(0, 242, 254, 0.4);
+  box-shadow: 0 12px 36px rgba(0, 242, 254, 0.25);
+}
+.toast-bubble.toast-tp::before { background: var(--accent-cyan); }
+
+.toast-bubble.toast-sl {
+  border: 1px solid rgba(245, 158, 11, 0.4);
+  box-shadow: 0 12px 36px rgba(245, 158, 11, 0.2);
+}
+.toast-bubble.toast-sl::before { background: var(--accent-yellow); }
+
+.toast-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.toast-title {
+  font-size: 14px;
+  font-weight: 800;
+  letter-spacing: 0.5px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.toast-time {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.toast-body {
+  font-size: 12px;
+  color: var(--text-secondary);
+  line-height: 1.5;
+}
+
+.toast-details-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px 12px;
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid rgba(255, 255, 255, 0.05);
+  font-size: 11px;
+}
+
+.toast-detail-item {
+  display: flex;
+  justify-content: space-between;
+}
+
+.toast-detail-label {
+  color: var(--text-muted);
+}
+
+.toast-detail-val {
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.toast-exit {
+  animation: toastFadeOut 0.4s ease forwards;
+}
+
+@keyframes toastSlideIn {
+  from {
+    opacity: 0;
+    transform: translateX(60px) scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0) scale(1);
+  }
+}
+
+@keyframes toastFadeOut {
+  from {
+    opacity: 1;
+    transform: translateX(0) scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: translateX(40px) scale(0.9);
+  }
+}
+
 @media (max-width: 1200px) {
   .col-3 { grid-column: span 6; }
   .col-4 { grid-column: span 6; }

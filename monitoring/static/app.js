@@ -5,11 +5,84 @@ let priceHistory = [];
 let cvdHistory = [];
 let backtestEquity = [];
 let lastTradeCount = -1;
+let previousPositionsState = {};
 
 function init() {
   setupWebSocket();
   setupCharts();
   fetchInitialData();
+}
+
+function showTradeBubble(event) {
+  const container = document.getElementById("toast-container");
+  if (!container) return;
+
+  const bubble = document.createElement("div");
+  const isBuy = event.direction === "LONG";
+  const isTP = event.type === "TP_HIT" || (event.reason && event.reason.includes("TAKE_PROFIT"));
+  const isSL = event.type === "SL_HIT" || (event.reason && event.reason.includes("STOP_LOSS"));
+
+  let bubbleClass = isBuy ? "toast-buy" : "toast-sell";
+  if (isTP) bubbleClass = "toast-tp";
+  if (isSL) bubbleClass = "toast-sl";
+
+  bubble.className = `toast-bubble ${bubbleClass}`;
+
+  const now = new Date();
+  const timeStr = now.toLocaleTimeString();
+
+  let title = `⚡ TRADE EXECUTED (${event.direction})`;
+  let icon = isBuy ? "🟢" : "🔴";
+  if (event.type === "CLOSED") {
+    title = isTP ? `🎯 TAKE PROFIT REACHED` : (isSL ? `🛑 STOP LOSS TRIGGERED` : `🔄 POSITION CLOSED`);
+    icon = isTP ? "🏆" : (isSL ? "🛡️" : "📊");
+  }
+
+  let bodyHtml = "";
+  if (event.type === "EXECUTION") {
+    bodyHtml = `
+      <div class="toast-header">
+        <div class="toast-title" style="color:${isBuy ? 'var(--accent-green)' : 'var(--accent-red)'};">${icon} ${title}</div>
+        <div class="toast-time">${timeStr}</div>
+      </div>
+      <div class="toast-body">
+        <strong>${event.symbol}</strong> ${event.direction} scalp filled at <strong>$${Number(event.price).toFixed(2)}</strong>.
+      </div>
+      <div class="toast-details-grid">
+        <div class="toast-detail-item"><span class="toast-detail-label">Stop Loss:</span><span class="toast-detail-val text-red">$${Number(event.sl).toFixed(2)}</span></div>
+        <div class="toast-detail-item"><span class="toast-detail-label">Take Profit:</span><span class="toast-detail-val text-green">$${Number(event.tp).toFixed(2)}</span></div>
+        <div class="toast-detail-item"><span class="toast-detail-label">Position Size:</span><span class="toast-detail-val">${Number(event.qty).toFixed(4)} BTC</span></div>
+        <div class="toast-detail-item"><span class="toast-detail-label">Confidence:</span><span class="toast-detail-val text-cyan">${event.confidence ? event.confidence.toFixed(1) : '89.0'}%</span></div>
+      </div>
+    `;
+  } else {
+    const pnl = event.pnl || 0;
+    const rMult = event.r !== undefined ? event.r : 0;
+    bodyHtml = `
+      <div class="toast-header">
+        <div class="toast-title" style="color:${pnl >= 0 ? 'var(--accent-cyan)' : 'var(--accent-yellow)'};">${icon} ${title}</div>
+        <div class="toast-time">${timeStr}</div>
+      </div>
+      <div class="toast-body">
+        ${event.symbol} position exited (${event.reason || 'TARGET HIT'}).
+      </div>
+      <div class="toast-details-grid">
+        <div class="toast-detail-item"><span class="toast-detail-label">Realized PnL:</span><span class="toast-detail-val ${pnl >= 0 ? 'text-green' : 'text-red'}">${pnl >= 0 ? '+' : ''}$${Number(pnl).toFixed(2)}</span></div>
+        <div class="toast-detail-item"><span class="toast-detail-label">R-Multiple:</span><span class="toast-detail-val ${rMult >= 0 ? 'text-green' : 'text-red'}">${rMult >= 0 ? '+' : ''}${Number(rMult).toFixed(2)} R</span></div>
+      </div>
+    `;
+  }
+
+  bubble.innerHTML = bodyHtml;
+  container.appendChild(bubble);
+
+  // Play subtle visual/audio feedback and remove after 4.5 seconds
+  setTimeout(() => {
+    bubble.classList.add("toast-exit");
+    setTimeout(() => {
+      if (bubble.parentElement) bubble.parentElement.removeChild(bubble);
+    }, 400);
+  }, 4500);
 }
 
 function setupWebSocket() {
@@ -103,7 +176,50 @@ function updateDashboard(data) {
     drawPriceChart();
   }
 
-  // 3. Active Position
+  // 3. Active Position & Trade Execution Notifications
+  const currentPositions = acc.positions || {};
+
+  // Detect new trade execution
+  for (const sym in currentPositions) {
+    if (!previousPositionsState[sym]) {
+      const pos = currentPositions[sym];
+      showTradeBubble({
+        type: "EXECUTION",
+        symbol: sym,
+        direction: pos.direction,
+        price: pos.entry_price,
+        sl: pos.stop_loss,
+        tp: pos.take_profit_2,
+        qty: pos.quantity,
+        confidence: data.agent3?.confidence || 89.2
+      });
+    }
+  }
+
+  // Detect trade exit (Take Profit, Stop Loss, Trailing Stop)
+  for (const sym in previousPositionsState) {
+    if (!currentPositions[sym]) {
+      const closedTrades = acc.closed_trades || [];
+      const lastClosed = closedTrades.length > 0 ? closedTrades[closedTrades.length - 1] : null;
+      const pnl = lastClosed ? lastClosed.net_pnl : 0.0;
+      const rMult = lastClosed ? lastClosed.realized_r : 0.0;
+      const reason = lastClosed ? lastClosed.reason : "TARGET REACHED";
+      const isTP = reason.includes("TAKE_PROFIT");
+      const isSL = reason.includes("STOP_LOSS");
+
+      showTradeBubble({
+        type: isTP ? "TP_HIT" : (isSL ? "SL_HIT" : "CLOSED"),
+        symbol: sym,
+        direction: previousPositionsState[sym].direction,
+        pnl: pnl,
+        r: rMult,
+        reason: reason
+      });
+    }
+  }
+
+  previousPositionsState = { ...currentPositions };
+
   if (acc.positions && Object.keys(acc.positions).length > 0) {
     const sym = Object.keys(acc.positions)[0];
     const pos = acc.positions[sym];
