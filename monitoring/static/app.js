@@ -4,6 +4,7 @@ let ws = null;
 let priceHistory = [];
 let cvdHistory = [];
 let backtestEquity = [];
+let lastTradeCount = -1;
 
 function init() {
   setupWebSocket();
@@ -41,19 +42,58 @@ function setupWebSocket() {
 function updateDashboard(data) {
   if (!data) return;
 
-  // Account
-  if (data.account) {
-    document.getElementById("acc-equity").textContent = `$${data.account.equity.toLocaleString('en-US', {minimumFractionDigits:2, maximumFractionDigits:2})}`;
-    document.getElementById("acc-balance").textContent = `Balance: $${data.account.balance.toLocaleString('en-US', {minimumFractionDigits:2})} USDT`;
-    
-    const pnl = data.account.daily_pnl || 0;
-    const pnlPct = (data.account.daily_pnl_pct || 0) * 100;
-    const pnlEl = document.getElementById("daily-pnl");
-    pnlEl.textContent = `${pnl >= 0 ? '+' : ''}$${pnl.toFixed(2)} (${pnlPct.toFixed(2)}%)`;
-    pnlEl.className = `stat-value ${pnl >= 0 ? 'text-green' : 'text-red'}`;
+  // 1. Top Hero Portfolio & P&L Command Center
+  const p = data.portfolio || {};
+  const acc = data.account || {};
+
+  const equity = p.equity !== undefined ? p.equity : (acc.equity || 10000.0);
+  const balance = p.balance !== undefined ? p.balance : (acc.balance || 10000.0);
+  const realizedPnl = p.realized_pnl !== undefined ? p.realized_pnl : (acc.realized_pnl || 0.0);
+  const realizedPct = balance > 0 ? (realizedPnl / balance) * 100.0 : 0.0;
+  const dailyPnl = p.daily_pnl !== undefined ? p.daily_pnl : (acc.daily_pnl || 0.0);
+  const unrealizedPnl = p.unrealized_pnl !== undefined ? p.unrealized_pnl : (acc.unrealized_pnl || 0.0);
+  const winRate = p.win_rate_pct !== undefined ? p.win_rate_pct : 0.0;
+  const winCount = p.winning_trades !== undefined ? p.winning_trades : 0;
+  const lossCount = p.losing_trades !== undefined ? p.losing_trades : 0;
+  const pf = p.profit_factor !== undefined ? p.profit_factor : 1.0;
+  const ddPct = p.drawdown_pct !== undefined ? p.drawdown_pct : 0.0;
+  const maxDdLimit = p.max_daily_loss_limit_pct || 1.5;
+
+  // Update Equity & Available Balance
+  document.getElementById("acc-equity").textContent = `$${equity.toLocaleString('en-US', {minimumFractionDigits:2, maximumFractionDigits:2})}`;
+  document.getElementById("acc-balance").textContent = `Available: $${balance.toLocaleString('en-US', {minimumFractionDigits:2, maximumFractionDigits:2})} USDT`;
+
+  // Update Net Realized P&L
+  const realEl = document.getElementById("realized-pnl");
+  realEl.textContent = `${realizedPnl >= 0 ? '+' : ''}$${realizedPnl.toFixed(2)}`;
+  realEl.className = `portfolio-stat-value ${realizedPnl >= 0 ? 'text-green' : 'text-red'}`;
+
+  const realPctEl = document.getElementById("realized-pnl-pct");
+  realPctEl.textContent = `${realPct >= 0 ? '+' : ''}${realPct.toFixed(2)}% Return`;
+  realPctEl.className = `portfolio-badge ${realPct >= 0 ? 'badge-pnl-pos' : 'badge-pnl-neg'}`;
+
+  // Update Daily & Unrealized Open PnL
+  const dailyEl = document.getElementById("daily-pnl");
+  dailyEl.textContent = `${dailyPnl >= 0 ? '+' : ''}$${dailyPnl.toFixed(2)}`;
+  dailyEl.className = `portfolio-stat-value ${dailyPnl >= 0 ? 'text-green' : 'text-red'}`;
+
+  const un採用El = document.getElementById("unrealized-pnl");
+  un採用El.textContent = `Open PnL: ${unrealizedPnl >= 0 ? '+' : ''}$${unrealizedPnl.toFixed(2)} USDT`;
+  un採用El.className = `portfolio-stat-sub ${unrealizedPnl > 0 ? 'text-green' : (unrealizedPnl < 0 ? 'text-red' : '')}`;
+
+  // Update Win Rate & Trades Summary
+  document.getElementById("portfolio-winrate").textContent = `${winRate.toFixed(1)}% WR`;
+  document.getElementById("portfolio-trades-summary").textContent = `${winCount} Wins / ${lossCount} Losses (${pf.toFixed(2)} PF)`;
+
+  // Update Drawdown & Risk Meter
+  document.getElementById("portfolio-dd").textContent = `${ddPct.toFixed(2)}% DD`;
+  const meterWidth = Math.min(100, Math.max(5, (ddPct / maxDdLimit) * 100));
+  const meterFill = document.getElementById("risk-meter-fill");
+  if (meterFill) {
+    meterFill.style.width = `${meterWidth}%`;
   }
 
-  // Market & Orderbook
+  // 2. Active Market Feed
   if (data.market) {
     document.getElementById("market-price").textContent = `${data.market.symbol} $${data.market.price.toLocaleString('en-US', {minimumFractionDigits:2})}`;
     document.getElementById("market-spread").textContent = `Spread: ${data.market.spread_bps.toFixed(1)} bps | Vol: ${data.market.volatility_regime || 'Normal'}`;
@@ -63,17 +103,24 @@ function updateDashboard(data) {
     drawPriceChart();
   }
 
-  // Position
-  if (data.account && data.account.positions && Object.keys(data.account.positions).length > 0) {
-    const sym = Object.keys(data.account.positions)[0];
-    const pos = data.account.positions[sym];
-    document.getElementById("pos-status").textContent = `${pos.direction} ${sym}`;
-    document.getElementById("pos-status").className = `stat-value ${pos.direction === 'LONG' ? 'text-green' : 'text-red'}`;
-    document.getElementById("pos-details").textContent = `SL: $${pos.stop_loss} | TP: $${pos.take_profit_2} | Qty: ${pos.quantity}`;
+  // 3. Active Position
+  if (acc.positions && Object.keys(acc.positions).length > 0) {
+    const sym = Object.keys(acc.positions)[0];
+    const pos = acc.positions[sym];
+    const curP = data.market?.price || pos.mark_price;
+    const floatPnl = pos.direction === 'LONG' ? (curP - pos.entry_price) * pos.quantity : (pos.entry_price - curP) * pos.quantity;
+    const riskDist = Math.abs(pos.entry_price - pos.stop_loss);
+    const floatR = riskDist > 0 ? floatPnl / (riskDist * pos.quantity) : 0.0;
+
+    const posStatusEl = document.getElementById("pos-status");
+    posStatusEl.textContent = `${pos.direction} ${sym} (${pos.quantity.toFixed(4)} BTC)`;
+    posStatusEl.className = `stat-value ${pos.direction === 'LONG' ? 'text-green' : 'text-red'}`;
+
+    document.getElementById("pos-details").textContent = `Entry: $${pos.entry_price.toFixed(2)} | SL: $${pos.stop_loss.toFixed(2)} | TP: $${pos.take_profit_2.toFixed(2)} | Floating: ${floatPnl >= 0 ? '+' : ''}$${floatPnl.toFixed(2)} (${floatR >= 0 ? '+' : ''}${floatR.toFixed(2)} R)`;
   } else {
-    document.getElementById("pos-status").textContent = "NONE";
+    document.getElementById("pos-status").textContent = "NONE (WAITING FOR SETUP)";
     document.getElementById("pos-status").className = "stat-value text-yellow";
-    document.getElementById("pos-details").textContent = "SL: - | TP: - | Size: 0.00";
+    document.getElementById("pos-details").textContent = "SL: - | TP: - | Size: 0.00 | Floating: $0.00 (0.00 R)";
   }
 
   // Agent 1
@@ -123,6 +170,13 @@ function updateDashboard(data) {
     if (data.agent3.reasons && data.agent3.reasons.length > 0) {
       document.getElementById("a3-reasons").innerHTML = data.agent3.reasons.slice(0, 3).map(r => `<li>${r}</li>`).join('');
     }
+  }
+
+  // 5. Automatically refresh Trade Journal when trade count changes
+  if (p.total_trades !== undefined && p.total_trades !== lastTradeCount) {
+    lastTradeCount = p.total_trades;
+    fetchTrades();
+    fetchMemory();
   }
 }
 

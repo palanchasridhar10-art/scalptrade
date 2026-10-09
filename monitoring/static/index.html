@@ -31,29 +31,62 @@
   <!-- Main Container -->
   <div class="dashboard-container">
     
-    <!-- Top Telemetry Row -->
-    <div class="card col-3">
-      <div class="card-title">Account Equity</div>
-      <div id="acc-equity" class="stat-value text-cyan">$10,000.00</div>
-      <div id="acc-balance" class="stat-sub">Balance: $10,000.00 USDT</div>
+    <!-- Top Hero Portfolio & P&L Command Center -->
+    <div class="card col-12 portfolio-hero-card">
+      <div class="portfolio-hero-grid">
+        
+        <!-- Total Portfolio Equity -->
+        <div class="portfolio-stat-box">
+          <div class="portfolio-stat-label">Total Portfolio Equity</div>
+          <div id="acc-equity" class="portfolio-stat-value text-cyan">$10,000.00</div>
+          <div id="acc-balance" class="portfolio-stat-sub">Available: $10,000.00 USDT</div>
+        </div>
+
+        <!-- Net Total P&L -->
+        <div class="portfolio-stat-box">
+          <div class="portfolio-stat-label">Net Realized P&L</div>
+          <div id="realized-pnl" class="portfolio-stat-value text-green">+$0.00</div>
+          <div id="realized-pnl-pct" class="portfolio-badge badge-pnl-pos">+0.00% Return</div>
+        </div>
+
+        <!-- Daily P&L & Open P&L -->
+        <div class="portfolio-stat-box">
+          <div class="portfolio-stat-label">Daily P&L / Floating Open</div>
+          <div id="daily-pnl" class="portfolio-stat-value text-green">+$0.00</div>
+          <div id="unrealized-pnl" class="portfolio-stat-sub">Open PnL: $0.00 USDT</div>
+        </div>
+
+        <!-- Win Rate & Profit Factor -->
+        <div class="portfolio-stat-box">
+          <div class="portfolio-stat-label">Trade Accuracy & Win Rate</div>
+          <div id="portfolio-winrate" class="portfolio-stat-value text-cyan">0.0% WR</div>
+          <div id="portfolio-trades-summary" class="portfolio-stat-sub">0 Wins / 0 Losses (0.00 PF)</div>
+        </div>
+
+        <!-- Risk Budget & Drawdown Limit -->
+        <div class="portfolio-stat-box">
+          <div class="portfolio-stat-label">Risk Utilization / Max DD</div>
+          <div id="portfolio-dd" class="portfolio-stat-value text-green">0.00% DD</div>
+          <div class="risk-meter-container">
+            <div id="risk-meter-fill" class="risk-meter-fill" style="width: 15%;"></div>
+          </div>
+          <div class="portfolio-stat-sub">Daily Cap: -1.50%</div>
+        </div>
+
+      </div>
     </div>
 
-    <div class="card col-3">
-      <div class="card-title">Daily PnL</div>
-      <div id="daily-pnl" class="stat-value text-green">+$0.00 (0.00%)</div>
-      <div id="loss-limit-sub" class="stat-sub">Daily Limit: -1.50%</div>
+    <!-- Active Market & Active Position Row -->
+    <div class="card col-6">
+      <div class="card-title">Active Market Feed</div>
+      <div id="market-price" class="stat-value text-cyan">BTCUSDT $67,420.50</div>
+      <div id="market-spread" class="stat-sub">Spread: 0.8 bps | Vol: Normal Regime</div>
     </div>
 
-    <div class="card col-3">
-      <div class="card-title">Active Market</div>
-      <div id="market-price" class="stat-value">BTCUSDT $67,420.50</div>
-      <div id="market-spread" class="stat-sub">Spread: 0.8 bps | Vol: Normal</div>
-    </div>
-
-    <div class="card col-3">
-      <div class="card-title">Active Position</div>
-      <div id="pos-status" class="stat-value text-yellow">NONE</div>
-      <div id="pos-details" class="stat-sub">SL: - | TP: - | Size: 0.00</div>
+    <div class="card col-6">
+      <div class="card-title">Active Live Position</div>
+      <div id="pos-status" class="stat-value text-yellow">NONE (WAITING FOR SETUP)</div>
+      <div id="pos-details" class="stat-sub">SL: - | TP: - | Size: 0.00 | Floating: $0.00 (0.00 R)</div>
     </div>
 
     <!-- Agent 1 Card -->
