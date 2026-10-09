@@ -3,7 +3,7 @@ services:
     name: scalptrade
     runtime: python
     buildCommand: pip3 install --upgrade pip && pip3 install -r requirements.txt
-    startCommand: python3 main.py --mode PAPER --serve
+    startCommand: bash start.sh
     envVars:
       - key: PYTHON_VERSION
         value: 3.11.8
