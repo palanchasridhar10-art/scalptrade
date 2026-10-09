@@ -1,0 +1,31 @@
+# Risk Management Parameters (Absolute Authority)
+
+limits:
+  max_risk_per_trade_pct: 0.005      # 0.50% account equity
+  min_risk_per_trade_pct: 0.001      # 0.10% account equity
+  max_daily_loss_pct: 0.015          # 1.50% account equity hard stop
+  max_weekly_loss_pct: 0.040         # 4.00% account equity
+  max_open_positions: 2
+  max_correlated_exposure_pct: 0.010 # 1.00% max sum risk in same direction
+  max_leverage: 3.0
+  max_slippage_bps: 5.0              # 5 basis points (0.05%)
+  max_spread_bps: 4.0                # 4 basis points (0.04%)
+  max_position_size_usd: 50000.0
+
+kelly:
+  fraction_multiplier: 0.15          # Quarter-Kelly safety scaling
+  min_sample_size: 50
+  default_win_rate: 0.58
+  default_payoff_ratio: 2.1
+
+cooldown:
+  normal_trade_cooldown_sec: 180
+  two_consecutive_losses_risk_reduction: 0.50
+  three_consecutive_losses_pause_sec: 3600
+  four_consecutive_losses_kill_switch: true
+
+emergency_triggers:
+  stale_data_timeout_ms: 2000
+  max_unrealized_drawdown_pct: 0.030
+  abnormal_volatility_atr_multiple: 3.5
+  order_rejection_limit_per_hour: 3

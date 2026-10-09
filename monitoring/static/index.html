@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Autonomous Crypto Scalping Agent — 3-Agent Architecture</title>
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+
+  <!-- Header -->
+  <header>
+    <div class="logo-group">
+      <div class="logo-badge">AGY 3-AGENT</div>
+      <div class="system-title">Autonomous Scalper Engine</div>
+    </div>
+    
+    <div class="header-status">
+      <div id="mode-badge" class="badge badge-paper">
+        <span class="badge-pulse"></span>
+        <span id="mode-text">MODE: PAPER TRADING</span>
+      </div>
+      <div id="health-badge" class="badge badge-live">
+        <span id="health-text">FEED: 12ms (FRESH)</span>
+      </div>
+      <button id="btn-backtest" class="btn btn-primary" onclick="runBacktest()">Run Backtest</button>
+      <button id="btn-kill" class="btn btn-danger" onclick="triggerKillSwitch()">Kill Switch</button>
+    </div>
+  </header>
+
+  <!-- Main Container -->
+  <div class="dashboard-container">
+    
+    <!-- Top Telemetry Row -->
+    <div class="card col-3">
+      <div class="card-title">Account Equity</div>
+      <div id="acc-equity" class="stat-value text-cyan">$10,000.00</div>
+      <div id="acc-balance" class="stat-sub">Balance: $10,000.00 USDT</div>
+    </div>
+
+    <div class="card col-3">
+      <div class="card-title">Daily PnL</div>
+      <div id="daily-pnl" class="stat-value text-green">+$0.00 (0.00%)</div>
+      <div id="loss-limit-sub" class="stat-sub">Daily Limit: -1.50%</div>
+    </div>
+
+    <div class="card col-3">
+      <div class="card-title">Active Market</div>
+      <div id="market-price" class="stat-value">BTCUSDT $67,420.50</div>
+      <div id="market-spread" class="stat-sub">Spread: 0.8 bps | Vol: Normal</div>
+    </div>
+
+    <div class="card col-3">
+      <div class="card-title">Active Position</div>
+      <div id="pos-status" class="stat-value text-yellow">NONE</div>
+      <div id="pos-details" class="stat-sub">SL: - | TP: - | Size: 0.00</div>
+    </div>
+
+    <!-- Agent 1 Card -->
+    <div class="card col-4 agent-card">
+      <div class="agent-header">
+        <div class="agent-name">
+          <span style="color:var(--accent-cyan);">●</span> Agent 1: Order Flow
+        </div>
+        <div id="a1-score" class="agent-score-dial text-cyan">88.5</div>
+      </div>
+      <div class="agent-metrics-grid">
+        <div class="metric-box">
+          <div class="metric-label">Direction Bias</div>
+          <div id="a1-dir" class="metric-data text-green">LONG</div>
+        </div>
+        <div class="metric-box">
+          <div class="metric-label">Book Imbalance</div>
+          <div id="a1-imb" class="metric-data">+38.2% (Bids)</div>
+        </div>
+        <div class="metric-box">
+          <div class="metric-label">CVD Delta</div>
+          <div id="a1-cvd" class="metric-data">+15,420 (Up)</div>
+        </div>
+        <div class="metric-box">
+          <div class="metric-label">Market Regime</div>
+          <div id="a1-regime" class="metric-data">TREND_UP</div>
+        </div>
+      </div>
+      <div class="card-title" style="margin-bottom:8px;">Microstructure Evidence</div>
+      <ul id="a1-reasons" class="reasons-list">
+        <li>Order book bid-skewed (+0.38)</li>
+        <li>Aggressive buy pressure (68.4%)</li>
+        <li>CVD trend expanding upward</li>
+      </ul>
+    </div>
+
+    <!-- Agent 2 Card -->
+    <div class="card col-4 agent-card">
+      <div class="agent-header">
+        <div class="agent-name">
+          <span style="color:var(--accent-purple);">●</span> Agent 2: Technical & SMC
+        </div>
+        <div id="a2-score" class="agent-score-dial text-cyan">91.0</div>
+      </div>
+      <div class="agent-metrics-grid">
+        <div class="metric-box">
+          <div class="metric-label">SMC Structure</div>
+          <div id="a2-struct" class="metric-data text-green">BOS / Bullish FVG</div>
+        </div>
+        <div class="metric-box">
+          <div class="metric-label">Liquidity Sweep</div>
+          <div id="a2-sweep" class="metric-data text-green">Asian Low Swept</div>
+        </div>
+        <div class="metric-box">
+          <div class="metric-label">VWAP & Bands</div>
+          <div id="a2-vwap" class="metric-data">Holding Above (+0.2%)</div>
+        </div>
+        <div class="metric-box">
+          <div class="metric-label">Kelly Sizing</div>
+          <div id="a2-kelly" class="metric-data">0.45% Equity</div>
+        </div>
+      </div>
+      <div class="card-title" style="margin-bottom:8px;">Structural Evidence</div>
+      <ul id="a2-reasons" class="reasons-list">
+        <li>Sell-side liquidity swept below swing low</li>
+        <li>Bullish Fair Value Gap (FVG) imbalance zone</li>
+        <li>Price holding firmly above VWAP</li>
+      </ul>
+    </div>
+
+    <!-- Agent 3 Card -->
+    <div class="card col-4 agent-card">
+      <div class="agent-header">
+        <div class="agent-name">
+          <span style="color:var(--accent-green);">●</span> Agent 3: Execution & Risk
+        </div>
+        <div id="a3-confidence" class="agent-score-dial text-green">89.2%</div>
+      </div>
+      <div class="agent-metrics-grid">
+        <div class="metric-box">
+          <div class="metric-label">Fused Decision</div>
+          <div id="a3-decision" class="metric-data text-green">BUY CANDIDATE</div>
+        </div>
+        <div class="metric-box">
+          <div class="metric-label">Risk Authorization</div>
+          <div id="a3-risk" class="metric-data text-green">APPROVED (No Veto)</div>
+        </div>
+        <div class="metric-box">
+          <div class="metric-label">Entry / SL / TP</div>
+          <div id="a3-levels" class="metric-data">67,120 / 66,880 / 67,650</div>
+        </div>
+        <div class="metric-box">
+          <div class="metric-label">Risk / Reward (R:R)</div>
+          <div id="a3-rr" class="metric-data text-cyan">2.21 R (Valid)</div>
+        </div>
+      </div>
+      <div class="card-title" style="margin-bottom:8px;">Execution Lifecycle</div>
+      <ul id="a3-reasons" class="reasons-list">
+        <li>Dual-agent consensus validated (Agent 1 & 2 agree)</li>
+        <li>Expected R:R 2.21 meets 2.0+ threshold</li>
+        <li>Risk limits verified: daily DD normal, spread 0.8 bps</li>
+      </ul>
+    </div>
+
+    <!-- Charts Row -->
+    <div class="card col-8">
+      <div class="card-title">
+        <span>Price Action & Cumulative Volume Delta (CVD)</span>
+        <span class="badge badge-live">5M Scalp Timeframe</span>
+      </div>
+      <div class="chart-container">
+        <canvas id="priceChart"></canvas>
+      </div>
+    </div>
+
+    <!-- Order Book & Heatmap Ladder -->
+    <div class="card col-4">
+      <div class="card-title">Order Book Depth & Heatmap</div>
+      <div class="orderbook-ladder" id="orderbook-view">
+        <div class="ob-row ob-ask"><span>67,460.00</span><span>18.42 BTC (Cluster)</span></div>
+        <div class="ob-row ob-ask"><span>67,440.00</span><span>8.15 BTC</span></div>
+        <div class="ob-row ob-ask"><span>67,425.00</span><span>3.20 BTC</span></div>
+        <div style="text-align:center; padding:4px 0; font-weight:bold; color:var(--accent-cyan);">─── SPREAD: $0.50 (0.7 bps) ───</div>
+        <div class="ob-row ob-bid"><span>67,419.50</span><span>4.10 BTC</span></div>
+        <div class="ob-row ob-bid"><span>67,400.00</span><span>12.80 BTC</span></div>
+        <div class="ob-row ob-bid"><span>67,380.00</span><span>24.50 BTC (Defense Wall)</span></div>
+      </div>
+    </div>
+
+    <!-- Bottom Tabs: Trade Journal / Backtest Results / Strategy Memory -->
+    <div class="card col-12">
+      <div class="tabs">
+        <div class="tab-item active" onclick="switchTab('trades')">Episodic Trade Journal</div>
+        <div class="tab-item" onclick="switchTab('memory')">Strategy Knowledge Matrix</div>
+        <div class="tab-item" onclick="switchTab('backtest')">Backtest Performance Report</div>
+      </div>
+
+      <div id="tab-trades">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Trade ID</th>
+              <th>Symbol</th>
+              <th>Setup</th>
+              <th>Direction</th>
+              <th>Entry Price</th>
+              <th>Exit Price</th>
+              <th>PnL (USD)</th>
+              <th>R-Multiple</th>
+              <th>Agent Scores</th>
+              <th>Confidence</th>
+              <th>Exit Reason</th>
+            </tr>
+          </thead>
+          <tbody id="trades-tbody">
+            <tr>
+              <td>tr_0042</td>
+              <td>BTCUSDT</td>
+              <td>LIQUIDITY_SWEEP_FVG</td>
+              <td><span class="text-green">LONG</span></td>
+              <td>$67,120.50</td>
+              <td>$67,680.00</td>
+              <td><span class="text-green">+$140.25</span></td>
+              <td>+2.33 R</td>
+              <td>A1: 88.5 | A2: 92.0</td>
+              <td>89.8%</td>
+              <td>TAKE_PROFIT_2_REACHED</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div id="tab-memory" style="display:none;">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Setup Identifier</th>
+              <th>Market Regime</th>
+              <th>Sample Size (N)</th>
+              <th>Win Rate</th>
+              <th>Payoff Ratio</th>
+              <th>Expectancy (R)</th>
+              <th>Profit Factor</th>
+              <th>Max Drawdown</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody id="memory-tbody">
+            <tr>
+              <td>LIQUIDITY_SWEEP_FVG</td>
+              <td>TREND_UP</td>
+              <td>142</td>
+              <td>68.3%</td>
+              <td>2.15</td>
+              <td>+1.15 R</td>
+              <td>2.41</td>
+              <td>-3.8%</td>
+              <td><span class="badge badge-live">VALIDATED</span></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div id="tab-backtest" style="display:none;">
+        <div style="display:grid; grid-template-columns: repeat(4, 1fr); gap:16px; margin-bottom:16px;" id="backtest-stats">
+          <div class="metric-box"><div class="metric-label">Win Rate</div><div id="bt-winrate" class="metric-data text-green">66.7%</div></div>
+          <div class="metric-box"><div class="metric-label">Profit Factor</div><div id="bt-pf" class="metric-data text-cyan">2.34</div></div>
+          <div class="metric-box"><div class="metric-label">Expectancy</div><div id="bt-exp" class="metric-data text-green">+1.12 R</div></div>
+          <div class="metric-box"><div class="metric-label">Max Drawdown</div><div id="bt-dd" class="metric-data text-yellow">-3.4%</div></div>
+        </div>
+        <div class="chart-container" style="height:220px;">
+          <canvas id="backtestChart"></canvas>
+        </div>
+      </div>
+
+    </div>
+
+  </div>
+
+  <script src="/static/app.js"></script>
+</body>
+</html>

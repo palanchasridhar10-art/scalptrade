@@ -1,0 +1,23 @@
+[Unit]
+Description=Autonomous Crypto Scalping Agent — 3-Agent Architecture
+After=network.target
+
+[Service]
+Type=simple
+User=ubuntu
+WorkingDirectory=/opt/autonomous-scalper
+EnvironmentFile=/opt/autonomous-scalper/.env
+ExecStart=/opt/autonomous-scalper/.venv/bin/python main.py --mode LIVE --serve --host 0.0.0.0 --port 8000
+Restart=always
+RestartSec=5
+StandardOutput=journal
+StandardError=journal
+
+# Hard limits and security isolation
+LimitNOFILE=65536
+CapabilityBoundingSet=CAP_NET_BIND_SERVICE
+ProtectSystem=full
+ProtectHome=read-only
+
+[Install]
+WantedBy=multi-user.target

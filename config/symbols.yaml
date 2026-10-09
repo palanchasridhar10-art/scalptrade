@@ -1,0 +1,27 @@
+# Trading Universe Configuration
+
+active_symbols:
+  - symbol: "BTCUSDT"
+    base_asset: "BTC"
+    quote_asset: "USDT"
+    tick_size: 0.10
+    step_size: 0.001
+    min_notional: 10.0
+    max_leverage: 20
+    is_active: true
+    priority: 1
+
+  - symbol: "ETHUSDT"
+    base_asset: "ETH"
+    quote_asset: "USDT"
+    tick_size: 0.01
+    step_size: 0.01
+    min_notional: 10.0
+    max_leverage: 20
+    is_active: true
+    priority: 2
+
+watchlist_symbols:
+  - symbol: "SOLUSDT"
+    is_active: false
+    priority: 3

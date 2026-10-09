@@ -1,0 +1,67 @@
+# Strategy Configuration Parameters
+
+timeframes:
+  macro: "1D"
+  major_structure: "4H"
+  directional_bias: "1H"
+  setup: "15M"
+  entry_refinement: "5M"
+  micro_execution: "1M"
+
+allowed_sessions:
+  - "London"
+  - "New York"
+  - "Asia"
+
+agent1_orderflow:
+  weights:
+    orderbook_imbalance: 20
+    timesales_velocity: 20
+    cvd_divergence: 20
+    footprint_imbalance: 15
+    liquidity_heatmap: 15
+    regime_alignment: 10
+  thresholds:
+    min_orderbook_depth_levels: 20
+    imbalance_ratio_trigger: 0.25
+    absorption_volume_multiple: 2.5
+    cvd_divergence_lookback_bars: 20
+    gex_weight_multiplier: 1.0
+
+agent2_technical_smc:
+  weights:
+    smc_structure: 20
+    liquidity_sweeps: 15
+    mtf_trend_alignment: 15
+    volume_profile: 10
+    market_profile: 10
+    vwap_position: 10
+    momentum_rsi_macd: 10
+    volatility_regime: 10
+  indicators:
+    ema_fast: 20
+    ema_mid: 50
+    ema_slow: 200
+    rsi_period: 14
+    rsi_overbought: 70
+    rsi_oversold: 30
+    atr_period: 14
+    adx_threshold: 22.0
+    volume_profile_bins: 50
+    value_area_pct: 0.70
+
+agent3_decision:
+  weights:
+    agent1_weight: 0.35
+    agent2_weight: 0.35
+    regime_confirmation: 0.10
+    risk_reward_quality: 0.10
+    execution_quality: 0.10
+  min_agent1_score: 80.0
+  min_agent2_score: 80.0
+  composite_confidence_threshold: 85.0
+  min_risk_reward: 2.0
+  tp1_ratio: 1.5
+  tp2_ratio: 2.5
+  partial_take_profit_pct: 0.50
+  trailing_stop_activation_r: 1.2
