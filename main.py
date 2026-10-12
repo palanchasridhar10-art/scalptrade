@@ -98,8 +98,8 @@ async def run_live_scalper(mode: str, symbol: str, product_id: int):
         min_agent_score=75.0
     )
 
-    # 2. Automatic Live Market Price Feed
-    price_feed = AutomaticPriceFeed(symbol=symbol, is_demo=is_demo, poll_interval=1.5)
+    # 2. Automatic Live Market Price Feed (Strict 1.0s Continuous Polling)
+    price_feed = AutomaticPriceFeed(symbol=symbol, is_demo=is_demo, poll_interval=1.0)
     await price_feed.start()
 
     # Load initial live L2 order book snapshot
@@ -156,16 +156,16 @@ async def run_live_scalper(mode: str, symbol: str, product_id: int):
                 a1_sig = agent1.evaluate(candles_df)
                 a2_sig = agent2.evaluate(candles_df)
 
-                # Periodic terminal status telemetry
-                if iteration % 4 == 0:
-                    flow = trade_flow.get_flow_metrics()
-                    logger.info(
-                        f"📊 [LIVE MARKET] {symbol} Spot: ${cur_price:,.2f} | "
-                        f"Spread: {spread_bps:.1f} bps | "
-                        f"A1: {a1_sig.regime} ({a1_sig.score:.0f} pts) | "
-                        f"A2: {a2_sig.structure} ({a2_sig.score:.0f} pts) | "
-                        f"CVD: {flow['recent_cvd']:+.2f}"
-                    )
+                # Real-time terminal status telemetry every 1 second
+                flow = trade_flow.get_flow_metrics()
+                logger.info(
+                    f"⚡ [1s LIVE TICK] {symbol} Spot: ${cur_price:,.2f} | "
+                    f"Mark: ${price_feed.mark_price:,.2f} | "
+                    f"Spread: {spread_bps:.1f} bps | "
+                    f"A1: {a1_sig.regime} ({a1_sig.score:.0f} pts) | "
+                    f"A2: {a2_sig.structure} ({a2_sig.score:.0f} pts) | "
+                    f"CVD: {flow['recent_cvd']:+.2f}"
+                )
 
                 # Evaluate execution decision
                 decision = await agent3.evaluate_and_execute(
@@ -179,7 +179,7 @@ async def run_live_scalper(mode: str, symbol: str, product_id: int):
                 if decision.action != "NO_TRADE":
                     logger.info(f"⚡ [EXECUTION TRIGGERED] {decision.action} {decision.quantity} {symbol} @ ${cur_price:.2f} (Confidence: {decision.confidence:.1f}%)")
 
-            await asyncio.sleep(1.5)
+            await asyncio.sleep(1.0)
 
     except (KeyboardInterrupt, asyncio.CancelledError):
         logger.info("Stopping Delta AI Scalper...")

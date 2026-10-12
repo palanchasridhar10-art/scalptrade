@@ -20,7 +20,7 @@ class AutomaticPriceFeed:
         self,
         symbol: str = "BTCUSD",
         is_demo: bool = False,
-        poll_interval: float = 1.5
+        poll_interval: float = 1.0
     ):
         self.symbol = symbol
         self.is_demo = is_demo
@@ -42,7 +42,7 @@ class AutomaticPriceFeed:
 
     async def get_session(self) -> aiohttp.ClientSession:
         if self._session is None or self._session.closed:
-            self._session = aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=5.0))
+            self._session = aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=2.0))
         return self._session
 
     async def fetch_live_ticker(self) -> Dict[str, Any]:
@@ -135,13 +135,16 @@ class AutomaticPriceFeed:
             await self._session.close()
 
     async def _poll_loop(self):
+        cycle = 0
         while self.is_running:
             try:
-                # 1. Update live ticker
+                cycle += 1
+                # 1. Update live ticker every 1 second
                 await self.fetch_live_ticker()
 
-                # 2. Periodically update candles (every 5 cycles)
-                await self.fetch_live_candles(limit=60)
+                # 2. Update candles every 5 seconds
+                if cycle % 5 == 0 or self.candles_df.empty:
+                    await self.fetch_live_candles(limit=60)
 
                 # 3. Fire tick callback
                 if self.on_tick:
