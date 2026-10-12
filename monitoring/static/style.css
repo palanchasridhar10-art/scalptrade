@@ -730,3 +730,37 @@ canvas {
 @media (max-width: 768px) {
   .col-3, .col-4, .col-6, .col-8, .col-12 { grid-column: span 12; }
 }
+
+/* 1-Second Price Flash Transition Animations */
+.value-flash-up {
+  color: #10b981 !important;
+  text-shadow: 0 0 16px rgba(16, 185, 129, 0.9) !important;
+  transform: scale(1.02);
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.value-flash-down {
+  color: #ef4444 !important;
+  text-shadow: 0 0 16px rgba(239, 68, 68, 0.9) !important;
+  transform: scale(1.02);
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.pulse-dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #10b981;
+  box-shadow: 0 0 10px #10b981;
+  animation: pulse1s 1s infinite ease-in-out;
+  margin-right: 6px;
+  vertical-align: middle;
+}
+
+@keyframes pulse1s {
+  0% { transform: scale(0.9); opacity: 0.5; }
+  50% { transform: scale(1.35); opacity: 1; }
+  100% { transform: scale(0.9); opacity: 0.5; }
+}
+

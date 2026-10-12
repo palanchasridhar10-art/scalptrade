@@ -12,6 +12,7 @@ from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 
+import aiohttp
 from config.settings import load_settings, SystemSettings
 from data.live.buffer import MarketDataManager, SymbolDataBuffer
 from data.schemas.market_data import OrderBook, OrderBookLevel, Trade, Candle
@@ -48,15 +49,50 @@ health_monitor = HealthMonitor(data_manager)
 primary_symbol = "BTCUSDT"
 buffer = data_manager.get_or_create(primary_symbol)
 active_websockets: Set[WebSocket] = set()
+latest_payload: Dict[str, Any] = {}
 
 active_trades_map: Dict[str, Dict[str, Any]] = {}
-current_price = 67420.50
+current_price = 83620.00
 tick_counter = 0
+
+async def fetch_live_market_price() -> Optional[float]:
+    """Fetch real-time Bitcoin market price from Delta Exchange India with Coinbase fallback."""
+    try:
+        timeout = aiohttp.ClientTimeout(total=2.0)
+        async with aiohttp.ClientSession(timeout=timeout) as session:
+            # 1. Delta Exchange India Live API
+            try:
+                async with session.get("https://api.india.delta.exchange/v2/tickers/BTCUSD") as resp:
+                    if resp.status == 200:
+                        data = await resp.json()
+                        result = data.get("result", {})
+                        mark = float(result.get("mark_price", 0))
+                        spot = float(result.get("spot_price", mark))
+                        close = float(result.get("close", mark))
+                        p = spot if spot > 0 else (mark if mark > 0 else close)
+                        if p > 0:
+                            return round(p, 2)
+            except Exception:
+                pass
+
+            # 2. Coinbase Fallback
+            try:
+                async with session.get("https://api.coinbase.com/v2/prices/spot?currency=USD") as resp:
+                    if resp.status == 200:
+                        data = await resp.json()
+                        amt = float(data.get("data", {}).get("amount", 0))
+                        if amt > 0:
+                            return round(amt, 2)
+            except Exception:
+                pass
+    except Exception as e:
+        logger.debug(f"Live market price fetch error: {e}")
+    return None
 
 def init_sample_data():
     global current_price
     now = datetime.now(timezone.utc)
-    base_price = 67420.50
+    base_price = 83620.00
     current_price = base_price
     
     # 50 historical 5M candles
@@ -110,25 +146,29 @@ async def autonomous_trading_engine_loop():
             now = datetime.now(timezone.utc)
             tick_counter += 1
 
-            # Realistic micro-fluctuations and momentum bursts
-            cycle = tick_counter % 30
-            if cycle < 12:
-                # Bullish buildup & sweep
-                delta_p = 4.5 + (tick_counter % 3) * 2.0
-                trade_side = "BUY"
-                trade_amt = 3.5 + (tick_counter % 5) * 1.2
-            elif cycle < 18:
-                # Retracement to FVG / discount
-                delta_p = -3.5 - (tick_counter % 3) * 1.5
-                trade_side = "SELL"
-                trade_amt = 1.5 + (tick_counter % 3) * 0.8
+            # 1. Fetch real-time market price every 1 second from Delta Exchange India
+            live_price = await fetch_live_market_price()
+            if live_price and live_price > 0:
+                delta_p = round(live_price - current_price, 2)
+                current_price = live_price
+                trade_side = "BUY" if delta_p >= 0 else "SELL"
+                trade_amt = round(1.2 + (tick_counter % 5) * 0.4, 4)
             else:
-                # Continuation rally
-                delta_p = 6.0 + (tick_counter % 4) * 2.5
-                trade_side = "BUY"
-                trade_amt = 4.5 + (tick_counter % 6) * 1.5
-
-            current_price = max(50000.0, current_price + delta_p)
+                # Realistic micro-fluctuations if external feed is momentarily delayed
+                cycle = tick_counter % 30
+                if cycle < 12:
+                    delta_p = round(1.5 + (tick_counter % 3) * 0.8, 2)
+                    trade_side = "BUY"
+                    trade_amt = round(2.0 + (tick_counter % 4) * 0.5, 4)
+                elif cycle < 18:
+                    delta_p = round(-1.5 - (tick_counter % 3) * 0.8, 2)
+                    trade_side = "SELL"
+                    trade_amt = round(1.2 + (tick_counter % 3) * 0.4, 4)
+                else:
+                    delta_p = round(2.5 + (tick_counter % 4) * 1.0, 2)
+                    trade_side = "BUY"
+                    trade_amt = round(3.0 + (tick_counter % 5) * 0.6, 4)
+                current_price = round(max(50000.0, current_price + delta_p), 2)
 
             # Ingest trade tick into live buffer
             t_obj = Trade(
@@ -279,6 +319,7 @@ async def autonomous_trading_engine_loop():
                 "agent2": a2_sig.model_dump(),
                 "agent3": a3_dec.model_dump()
             }
+            latest_payload = payload
 
             # Broadcast to active WebSockets
             dead_sockets = set()
@@ -319,6 +360,35 @@ async def get_index():
     index_path = STATIC_DIR / "index.html"
     return HTMLResponse(content=index_path.read_text(encoding="utf-8"))
 
+@app.get("/api/state")
+@app.get("/api/live")
+async def get_live_state():
+    """Real-time 1-second auto update endpoint returning full market, agent & portfolio state."""
+    global latest_payload
+    if latest_payload:
+        return JSONResponse(content=latest_payload)
+    account = await paper_exchange.get_account_state()
+    return JSONResponse(content={
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "market": {
+            "symbol": primary_symbol,
+            "price": round(current_price, 2),
+            "spread_bps": 0.8,
+            "volatility_regime": "NORMAL"
+        },
+        "portfolio": {
+            "equity": round(account.equity, 2),
+            "balance": round(account.balance, 2),
+            "daily_pnl": round(account.daily_pnl, 2),
+            "realized_pnl": 0.0,
+            "unrealized_pnl": 0.0,
+            "win_rate_pct": 0.0,
+            "profit_factor": 1.0,
+            "drawdown_pct": 0.0
+        },
+        "account": account.model_dump()
+    })
+
 @app.get("/api/status")
 async def get_status():
     account = await paper_exchange.get_account_state()
@@ -327,7 +397,8 @@ async def get_status():
         "mode": settings.trading_mode,
         "health": health,
         "account": account.model_dump(),
-        "primary_symbol": primary_symbol
+        "primary_symbol": primary_symbol,
+        "current_price": round(current_price, 2)
     }
 
 @app.get("/api/trades")

@@ -6,11 +6,32 @@ let cvdHistory = [];
 let backtestEquity = [];
 let lastTradeCount = -1;
 let previousPositionsState = {};
+let isPollingLiveState = false;
+
+async function fetchLiveState() {
+  if (isPollingLiveState) return;
+  isPollingLiveState = true;
+  try {
+    const res = await fetch("/api/state");
+    if (res.ok) {
+      const data = await res.json();
+      updateDashboard(data);
+    }
+  } catch (err) {
+    console.debug("1s Live State Poll:", err);
+  } finally {
+    isPollingLiveState = false;
+  }
+}
 
 function init() {
   setupWebSocket();
   setupCharts();
   fetchInitialData();
+  
+  // Continuous 1-second automatic price and state update without manual click
+  fetchLiveState();
+  setInterval(fetchLiveState, 1000);
 }
 
 function showTradeBubble(event) {
@@ -179,12 +200,28 @@ function updateDashboard(data) {
     meterFill.style.width = `${meterWidth}%`;
   }
 
-  // 2. Active Market Feed
+  // 2. Active Market Feed (1-Second Real-Time Flash & Stream)
   if (data.market) {
-    document.getElementById("market-price").textContent = `${data.market.symbol} $${data.market.price.toLocaleString('en-US', {minimumFractionDigits:2})}`;
-    document.getElementById("market-spread").textContent = `Spread: ${data.market.spread_bps.toFixed(1)} bps | Vol: ${data.market.volatility_regime || 'Normal'}`;
-    
-    priceHistory.push({ time: new Date(), price: data.market.price, cvd: data.agent1?.delta || 0 });
+    const mktEl = document.getElementById("market-price");
+    const newPrice = Number(data.market.price);
+    const prevPrice = parseFloat(mktEl.getAttribute("data-prev-price") || newPrice);
+
+    mktEl.textContent = `${data.market.symbol} $${newPrice.toLocaleString('en-US', {minimumFractionDigits:2, maximumFractionDigits:2})}`;
+    document.getElementById("market-spread").textContent = `Spread: ${data.market.spread_bps.toFixed(1)} bps | Vol: ${data.market.volatility_regime || 'Normal'} | Live Auto 1s`;
+
+    // 1-second price uptick / downtick flash visual
+    if (newPrice > prevPrice + 0.01) {
+      mktEl.classList.remove("value-flash-down");
+      mktEl.classList.add("value-flash-up");
+      setTimeout(() => mktEl.classList.remove("value-flash-up"), 350);
+    } else if (newPrice < prevPrice - 0.01) {
+      mktEl.classList.remove("value-flash-up");
+      mktEl.classList.add("value-flash-down");
+      setTimeout(() => mktEl.classList.remove("value-flash-down"), 350);
+    }
+    mktEl.setAttribute("data-prev-price", newPrice);
+
+    priceHistory.push({ time: new Date(), price: newPrice, cvd: data.agent1?.delta || 0 });
     if (priceHistory.length > 50) priceHistory.shift();
     drawPriceChart();
   }
@@ -719,5 +756,42 @@ async function triggerKillSwitch() {
   }
 }
 
+function setChartMode(mode) {
+  const cvdContainer = document.getElementById("cvd-chart-container");
+  const tvContainer = document.getElementById("tv-chart-container");
+  const btnCvd = document.getElementById("btn-chart-cvd");
+  const btnTv = document.getElementById("btn-chart-tv");
+
+  if (mode === 'tv') {
+    if (cvdContainer) cvdContainer.style.display = "none";
+    if (tvContainer) tvContainer.style.display = "block";
+    if (btnCvd) {
+      btnCvd.className = "btn";
+      btnCvd.style.background = "rgba(255,255,255,0.08)";
+      btnCvd.style.color = "var(--text-secondary)";
+    }
+    if (btnTv) {
+      btnTv.className = "btn btn-primary";
+      btnTv.style.background = "";
+      btnTv.style.color = "";
+    }
+  } else {
+    if (cvdContainer) cvdContainer.style.display = "block";
+    if (tvContainer) tvContainer.style.display = "none";
+    if (btnCvd) {
+      btnCvd.className = "btn btn-primary";
+      btnCvd.style.background = "";
+      btnCvd.style.color = "";
+    }
+    if (btnTv) {
+      btnTv.className = "btn";
+      btnTv.style.background = "rgba(255,255,255,0.08)";
+      btnTv.style.color = "var(--text-secondary)";
+    }
+    drawPriceChart();
+  }
+}
+
 window.addEventListener("DOMContentLoaded", init);
 window.addEventListener("resize", setupCharts);
+

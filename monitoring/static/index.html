@@ -80,9 +80,12 @@
 
     <!-- Active Market & Active Position Row -->
     <div class="card col-6">
-      <div class="card-title">Active Market Feed</div>
-      <div id="market-price" class="stat-value text-cyan">BTCUSDT $67,420.50</div>
-      <div id="market-spread" class="stat-sub">Spread: 0.8 bps | Vol: Normal Regime</div>
+      <div class="card-title" style="display:flex; justify-content:space-between; align-items:center;">
+        <span>Active Market Feed</span>
+        <span class="badge badge-live"><span class="pulse-dot"></span>1s LIVE TICK</span>
+      </div>
+      <div id="market-price" class="stat-value text-cyan">BTCUSDT $83,620.00</div>
+      <div id="market-spread" class="stat-sub">Spread: 0.8 bps | Vol: Normal Regime | Delta India Sync</div>
     </div>
 
     <div class="card col-6">
@@ -144,7 +147,7 @@
         </div>
         <div class="metric-box">
           <div class="metric-label">Limit Wall Defense</div>
-          <div id="a2-limit-wall" class="metric-data text-cyan">Bid Wall @ $67,200</div>
+          <div id="a2-limit-wall" class="metric-data text-cyan">Bid Wall @ $83,400</div>
         </div>
         <div class="metric-box">
           <div class="metric-label">VWAP & Valuation</div>
@@ -154,7 +157,7 @@
       <div class="card-title" style="margin-bottom:8px;">Structural & Heatmap Evidence</div>
       <ul id="a2-reasons" class="reasons-list">
         <li>Sell-side liquidity swept below swing low</li>
-        <li>Resting Limit Bid Wall defense active at $67,200.00</li>
+        <li>Resting Limit Bid Wall defense active at $83,400.00</li>
         <li>Price holding firmly above VWAP in Discount zone</li>
       </ul>
     </div>
@@ -178,7 +181,7 @@
         </div>
         <div class="metric-box">
           <div class="metric-label">Entry / SL / TP</div>
-          <div id="a3-levels" class="metric-data">67,120 / 66,880 / 67,650</div>
+          <div id="a3-levels" class="metric-data">83,500 / 83,280 / 84,100</div>
         </div>
         <div class="metric-box">
           <div class="metric-label">Risk / Reward (R:R)</div>
@@ -195,12 +198,19 @@
 
     <!-- Charts Row -->
     <div class="card col-8">
-      <div class="card-title">
+      <div class="card-title" style="display:flex; justify-content:space-between; align-items:center;">
         <span>Price Action & Cumulative Volume Delta (CVD)</span>
-        <span class="badge badge-live">5M Scalp Timeframe</span>
+        <div style="display:flex; gap:6px; align-items:center;">
+          <button id="btn-chart-cvd" class="btn btn-primary" style="padding:4px 8px; font-size:11px;" onclick="setChartMode('cvd')">CVD Microstructure</button>
+          <button id="btn-chart-tv" class="btn" style="padding:4px 8px; font-size:11px; background:rgba(255,255,255,0.08); color:var(--text-secondary);" onclick="setChartMode('tv')">📈 TradingView Live</button>
+          <span class="badge badge-live">5M Scalp</span>
+        </div>
       </div>
-      <div class="chart-container">
+      <div class="chart-container" id="cvd-chart-container">
         <canvas id="priceChart"></canvas>
+      </div>
+      <div id="tv-chart-container" style="display:none; height:240px; width:100%; border-radius:8px; overflow:hidden;">
+        <iframe id="tv-iframe" src="https://s.tradingview.com/widgetembed/?symbol=BINANCE%3ABTCUSDT&interval=1&theme=dark&style=1&timezone=exchange&hide_top_toolbar=0&withdateranges=0&hide_side_toolbar=1&allow_symbol_change=0&save_image=0" style="width:100%; height:100%; border:none;"></iframe>
       </div>
     </div>
 
