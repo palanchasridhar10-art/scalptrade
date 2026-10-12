@@ -3,7 +3,7 @@ import json
 import logging
 import uuid
 from pathlib import Path
-from typing import Dict, Any, List, Set
+from typing import Dict, Any, List, Set, Optional
 from datetime import datetime, timezone, timedelta
 from contextlib import asynccontextmanager
 
